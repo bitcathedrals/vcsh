@@ -172,7 +172,12 @@ set_pyenv
 
 if [[ `uname` == Darwin ]]
 then
-  binutils=$(find "/opt/homebrew/Cellar/binutils" -name "*" -depth 1 -print | sort -V -t '/' -k 5)
+  binutils=""
+
+  if [[ -d "/opt/homebrew" ]]
+  then
+    binutils=$(find "/opt/homebrew/Cellar/binutils" -name "*" -depth 1 -print | sort -V -t '/' -k 5)
+  fi
 
   if [[ -d "${binutils}/bin" ]]
   then
@@ -187,9 +192,6 @@ PATH="$CODE/security/bin:$PATH"
 PATH="$CODE/pythonsh/bin:$PATH"
 PATH="$CODE/docker/bin:$PATH"
 PATH="$CODE/grail/bin:$PATH"
-PATH="$CODE/pypi/bin:$PATH"
-PATH="$CODE/canary/bin:$PATH"
-PATH="$CODE/pastepipe/bin:$PATH"
 PATH="$CODE/cppsh/bin:$PATH"
 PATH="$CODE/vcsh/bin:$PATH"
 

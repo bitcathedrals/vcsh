@@ -1,4 +1,4 @@
-test -z "$ZSHRC_CUSTOM_LOADED" && source $HOME/.zshrc.custom
+test -z $ZSHRC_CUSTOM_LOADED && source $HOME/.zshrc.custom
 
 test -f $HOME/.zshrc.prompt && source $HOME/.zshrc.prompt
 
@@ -15,9 +15,6 @@ function load_python_sh {
   if test -f python.sh
   then
     source python.sh
-  else
-    echo >/dev/stderr "pythonsh zshrc: can\'t find python.sh - are you in the project root?"
-    return 1
   fi
 
   return 0
@@ -51,7 +48,7 @@ function switch_to_virtual {
   then
     echo "completed."
   else
-    echo >/dev/stderr "pythonsh zshrc: switch to ${virt} FAILED!"
+    echo >/dev/stderr "zshrc: switch to ${virt} FAILED!"
     return 1
   fi
 

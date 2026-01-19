@@ -10,12 +10,14 @@ project_name="?"
 prompt_host="?"
 
 function get_pyenv {
+  virtual_environment="NA"
+
+  command -v 'pyenv' >/dev/null 2>&1 || return 0
+
   environment=`pyenv version`
 
-  if [[ -z $environment ]]
+  if [[ -n $environment ]]
   then
-    virtual_environment="NA"
-  else
     virtual_environment=`echo "$environment" |  cut -d ' ' -f 1`
   fi
 }
@@ -63,7 +65,7 @@ function is_git {
   return 1
 }
 
-function pythonsh_prompt_update {
+function vcsh_prompt_update {
   if is_git
   then
     get_pyenv
@@ -78,4 +80,4 @@ function pythonsh_prompt_update {
 
 get_host
 
-precmd_functions+=( pythonsh_prompt_update )
+precmd_functions+=( vcsh_prompt_update )
