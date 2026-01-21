@@ -111,11 +111,7 @@ function launch_ssh_agent {
 
   case "$system" in
     "Darwin")
-      if [[ `uname` == "Darwin" ]]
-      then
-        echo "ignoring ssh-agent launch on Darwin"
-        return
-      fi
+      return
     ;;  
   esac
 
