@@ -66,8 +66,6 @@ function unique_path {
     fi
   done
 
-  echo "final is: $final"
-
   user_paths=$(echo "$final" | /usr/bin/grep -E '^/home')
   user_paths=$(echo "$user_paths" | /usr/bin/awk '{ temp=$0 ; print gsub(/\//, "", temp) " " $0 }' - | /usr/bin/sort -r -n -k1,1 | /usr/bin/cut -d' ' -f2-)
   user_paths=$(echo "$user_paths"  | /usr/bin/tr "\n" ":")
@@ -75,9 +73,6 @@ function unique_path {
   system_paths=$(echo "$final" | /usr/bin/grep -v -E '^/home')
   system_paths=$(echo "$system_paths" | /usr/bin/awk '{ temp=$0 ; print gsub(/\//, "", temp) " " $0 }' - | /usr/bin/sort -r -n -k1,1 | /usr/bin/cut -d' ' -f2-)
   system_paths=$(echo "$system_paths" | /usr/bin/tr "\n" ":")
-
-  echo "user is: $user_paths"
-  echo "system is: $system_paths"
 
   PATH=$(echo "${user_paths}:${system_paths}" | /usr/bin/tr -s ":")
   export PATH
