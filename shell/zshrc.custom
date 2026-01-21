@@ -52,30 +52,29 @@ function set_emacs_brew {
 }
 
 function unique_path {
-  tac=`which tac`
-  if [[ $? -eq 0 ]]
-  then
-    reversed_list=$(echo $PATH | /usr/bin/tr -s ":" | /usr/bin/tr -s ":" "\n" | $tac)
-  else
-    reversed_list=$(echo $PATH | /usr/bin/tr -s ":" | /usr/bin/tr -s ":" "\n" | sort -r)
-  fi
+  reversed_list=$(echo $PATH | /usr/bin/tr -s ":" | /usr/bin/tr ":" "\n" | sort -r | sed '/^$/d')
 
   final=""
 
-  for path in $(echo $reversed_list | sed '/^$/d')
+  for path in $(echo $reversed_list)
   do
     removed=$(echo $removed | /usr/bin/tail -n +1)
 
-    if echo "$removed" | /usr/bin/grep $path - >/dev/null 2>&1
+    if ! echo "$removed" | /usr/bin/grep $path - >/dev/null 2>&1
     then
-      echo /dev/stderr "unique_path - skipping: $path"
-    else
-#      echo /dev/stderr "unique_path - adding: $path"
-      final="$path:$final"
+      final="${path}\n${final}"
     fi
   done
 
-  PATH=$(echo "$final" | /usr/bin/tr "\n" ":" | /usr/bin/tr -s ":")
+  echo "final is: $final"
+
+  user_paths=$(echo "$final" | /usr/bin/grep -E '^/home' | /usr/bin/tr "\n" ":")
+  system_paths=$(echo "$final" | /usr/bin/grep -v -E '^/home' | /usr/bin/tr "\n" ":")
+
+  echo "user is: $user_paths"
+  echo "system is: $system_paths"
+
+  PATH=$(echo "${user_paths}:${system_paths}" | /usr/bin/tr -s ":")
   export PATH
 }
 
