@@ -109,7 +109,7 @@ function launch_ssh_agent {
     return
   fi
 
-  echo -n "ssh-agent: found ssh-agent debris..."
+  echo -n "vcsh: found ssh-agent debris..."
 
   if pgrep -U $USER ssh-agent >/dev/null 2>&1
   then
@@ -122,7 +122,7 @@ function launch_ssh_agent {
     pkill -U $USER ssh-agent >/dev/nuill 2>&1
   fi
 
-  echo >/dev/stderr "dead agent(s). starting a new ssh-agent."
+  echo >/dev/stderr "vcsh: dead agent(s). starting a new ssh-agent."
   eval $(ssh-agent -s)
 }
 
