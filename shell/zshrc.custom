@@ -83,7 +83,7 @@ function set_editor {
     return 0
   fi
 
-  echo >/dev/stderr "WARNING: zshrc.custom no editor found!"
+  echo >/dev/stderr "zshrc: (WARNING) no editor found!"
   return 1
 }
 
