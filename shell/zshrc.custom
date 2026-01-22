@@ -33,24 +33,6 @@ function set_homebrew {
   return 1
 }
 
-function set_emacs_brew {
-  # brew can be in three different locations
-
-  brew_binary="/opt/emacs/bin/brew" 
-
-  if [[ -e $brew_binary ]]
-  then
-    eval $($brew_binary shellenv)
-    echo "set brew to emacs brew in /opt/"
-    return 0
-  else
-    echo "unable to find brew executable for emacs in /opt/"
-    return 0
-  fi
-
-  return 1
-}
-
 function unique_path {
   reversed_list=$(echo $PATH | /usr/bin/tr -s ":" | /usr/bin/tr ":" "\n" | sort -r | sed '/^$/d')
 
