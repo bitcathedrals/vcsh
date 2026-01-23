@@ -151,65 +151,6 @@ MESSAGE
 }
 
 case $1 in
-  "tools-python")
-    # attempt to install git flow
-
-    if [[ `uname` == "Darwin" ]]
-    then
-      if command -v brew >/dev/null 2>&1
-      then
-        brew install git-flow-avh
-      else
-        if command -v ports >/dev/null 2>&1
-        then
-          ports install git-flow-avh
-        else
-          echo "vcsh: tools-python - cannot find a way to install git-flow: brew,ports"
-        fi
-      fi
-    else
-      if command -v apt >/dev/null 2>&1
-      then
-        if command -v doas >/dev/null 2>&1
-        then
-          doas apt install git-flow libbz2-dev liblzma-dev libncurses-dev libreadline-dev libssl-dev libsqlite3-dev libffi-dev gcc autoconf automake libtool autotools-dev make zlib1g zlib1g-dev
-        else
-          sudo apt install git-flow libbz2-dev liblzma-dev libncurses-dev libreadline-dev libssl-dev libsqlite3-dev libffi-dev gcc autoconf automake libtool autotools-dev make zlib1g zlib1g-dev
-        fi
-      else
-        echo "vcsh: tools-python - cannot find a way to install git-flow: all I know is apt"
-      fi
-    fi
-
-    echo >/dev/stderr "vcsh: installing tools for python"
-
-    TOOLS="$HOME/tools/"
-    PYENV_ROOT="$TOOLS/pyenv"
-
-    test -d "$TOOLS/local" || mkdir -p "$TOOLS/local"
-
-    if test -d $PYENV_ROOT && test -d $PYENV_ROOT/.git
-    then
-      echo >/dev/stderr "vcsh: updating PYENV_ROOT=${PYENV_ROOT}"
-      (cd $PYENV_ROOT && git pull)
-    else
-      echo /dev/stderr "vcsh: cloning pyenv into PYENV_ROOT=${PYENV_ROOT}"
-      git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT
-    fi
-
-    VIRTUAL="$TOOLS/pyenv-virtual"
-    echo >/dev/stderr "vcsh: installing pyenv-virtual for UNIX in ${VIRTUAL}"
-
-    if test -d $VIRTUAL && test -d "$VIRTUAL/.git"
-    then
-      echo >/dev/stderr "vcsh: updating pyenv-virtual"
-      (cd $VIRTUAL && git pull && export PREFIX="$TOOLS/local" && ./install.sh)
-    else
-      echo >/dev/stderr "vcsh: cloning pyenv-virtual into ${VIRTUAL}"
-      git clone https://github.com/pyenv/pyenv-virtualenv.git $VIRTUAL
-      (cd $VIRTUAL && export PREFIX="$TOOLS/local" && ./install.sh)
-    fi
-    ;;
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
     echo >/dev/stderr "vcsh: replaced .zshrc with upstream version"
