@@ -513,7 +513,7 @@ case $1 in
     echo ">>>showing delta between $root and $branch"
     git diff "${root}..${branch}"
     ;;
-  "delta")
+  "preview")
     root_to_branch
 
     echo ">>>showing delta of not in either root or branch"
@@ -729,6 +729,9 @@ status     = git state, submodule state, diffstat for changes in tree
 since      = <DATE> pull logs since date, extra <ARGS...> are passed
 fetch      = fetch main, develop, and current branch
 pull       = pull current branch no ff
+
+[show log/diff/reports]
+
 staged     = show staged changes
 merges     = show merges only
 releases   = show releases (tags)
