@@ -513,6 +513,12 @@ case $1 in
     echo ">>>showing delta between $root and $branch"
     git diff "${root}..${branch}"
     ;;
+  "delta")
+    root_to_branch
+
+    echo ">>>showing delta of not in either root or branch"
+    git diff "${root}...${branch}"
+    ;;
   "merges")
     git log --merges --oneline
     ;;
@@ -534,6 +540,12 @@ case $1 in
 
     echo ">>>showing commits in $root (parent) not $branch"
     git log "${branch}..${root}" --oneline
+    ;;
+  "pending")
+    root_to_branch
+
+    echo ">>>showing commits in $branch not $root (parent)"
+    git log "${root}...${branch}" --oneline
     ;;
   "graph")
     root_to_branch
@@ -721,10 +733,14 @@ staged     = show staged changes
 merges     = show merges only
 releases   = show releases (tags)
 history    = show commit history
-summary    = show diffstat of summary between feature and develop or last release and develop
-delta      = show diff between feature and develop or last release and develop
+
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
+summary    = show diffstat of summary between feature and develop or last release and develop
+pending    = show log of commits that are not in root or branch (to be merged)
+
+delta      = show diff between feature and develop or last release and develop
+preview    = show diff between root and branch that is not in both (to be merged)
 
 release-report  = generate a report of changes since last release
 status-report = generate a report of changes ahead of the trunk
