@@ -1,16 +1,8 @@
 #+LATEX_CLASS: article
-#+TITLE: Git & Python Development Automation
+#+TITLE: vcsh: Git workflow, practices, and automation
 #+AUTHOR: Mr. Mattie
 
 * Introduction
-
-Business assets go beyond code to include API's, integrations, teams,
-and releases. The process to get from code in a editor to a release is
-paved by tools.
-
-Using those tools effectively can move a project efficiently from code
-to production. Not having effective devops can hobble and kill
-projects with broken deliveries.
 
 In many cases developers huddled around their limited knowledge of
 tools, like a swimmer clinging to a life vest. Instead of enabling
@@ -21,9 +13,21 @@ started as a Makefile, and then a bash script called manage.sh, and
 finally PythonSh. The idea was to build correct tool use into a single
 command, with intelligence to tailor it to a context and scenario.
 
-You are going to see the result of 20+ years of experience, and 4
-years of development baked into a mature, effective, and innovative
-tool.
+I had built tooling into a PythonSH workflow tool. After I had made
+general tooling, version control, and python dev management I realized
+I had built a monolith.
+
+* breaking out the Git workflow
+
+Having realized the tooling for Git and Python were too bundled
+for general use, and the git-flow tool had been abandon, super
+seeded by git-flow-avh, and neither was available on OpenBSD.
+
+The git workflow was a huge mess. No where was it clear or indicated
+that there were two git-flow, and the original was abandon.
+
+I decided that I needed to break out the Version Control workflow into
+Git only tooling.
 
 * PythonSh - Automation is Innovation.
 
