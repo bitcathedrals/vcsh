@@ -405,12 +405,12 @@ case $1 in
       exit 1
     fi
 
-    if [[ "$name" == "develop" || "$name" == "main" ]]
+    if [[ "$name" == "$INTEGRATON" || "$name" == "$MAIN" ]]
     then
       exec git checkout "$name"
     fi
 
-    if git flow feature | grep "$name" >/dev/null 2>&1
+    if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
       echo "vc checking out feature: $name" >/dev/stderr
       exec git checkout "feature/${name}"
@@ -512,9 +512,9 @@ case $1 in
     exec git log --since "$from" $@
     ;;
   "status")
-    git status
-    git submodule foreach 'git status'
-    git diff --stat
+    git status | grep -v -E '^$'
+    git submodule foreach 'git status | grep -v -E "^$"'
+    git diff --stat | grep -v -E '^$'
     ;;
   "fetch")
     git fetch
@@ -543,7 +543,7 @@ case $1 in
     root_to_branch
 
     echo ">>>showing delta of not in either root or branch"
-    git diff "${root}...${branch}"
+    git diff "${root}...${branch}" | grep -v -E '^$'
     ;;
   "merges")
     git log --merges --oneline
@@ -559,7 +559,7 @@ case $1 in
     root_to_branch
 
     echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}..${branch}" --oneline
+    git log "${root}..${branch}" --oneline | grep -v -E '^$'
     ;;
   "behind")
     root_to_branch
@@ -571,7 +571,7 @@ case $1 in
     root_to_branch
 
     echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}...${branch}" --oneline
+    git log "${root}...${branch}" --oneline | grep -v -E '^$'
     ;;
   "graph")
     root_to_branch
