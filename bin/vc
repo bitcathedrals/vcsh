@@ -30,6 +30,24 @@ case $VCSH_SYSTEM in
   ;;
 esac
 
+#
+# default values
+#
+
+MAIN="main"
+INTEGRATION="develop"
+FEATURE="feature"
+BUGFIX="bugfix"
+RELEASE="release"
+TAG="release"
+VERSION=""
+
+#
+# vc.sh, required and overrides
+#
+
+test -f vc.sh && source vc.sh
+
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
 
@@ -321,8 +339,16 @@ case $1 in
       exit 1
     fi
 
-    git flow feature start $name
-    ;;
+    git checkout -b "${FEATURE}/${name}"
+
+    if [[ $? -ne 0 ]]
+    then
+      echo >/dev/stderr "vcsh begin: error creating feature branch $name"
+      exit 1
+    fi
+
+    echo >/dev/stderr "vcsh begin: on new feature branch \"$name\""
+   ;;
   "end")
     shift
     name=$1
