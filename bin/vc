@@ -359,11 +359,21 @@ case $1 in
       exit 1
     fi
 
-    git flow feature finish $name
+    if ! git branch | grep "${FEATURE}/${name}"
+    then
+      echo "vcsh end: feature branch ${name} not found."
+      exit 1
+    fi
+
+    if ! git checkout "${INTEGRATION}"
+    then
+      echo "vcsh end: error swithing to ${INTEGRATION} branch for merging"
+      exit 1
+    fi
     ;;
 
   "features")
-    git flow feature
+    git branch | grep "${FEATURE}"
     ;;
 
   "bug")
@@ -392,7 +402,7 @@ case $1 in
     ;;
 
   "bugfixes")
-    git checkout "bugfix/$name"
+    git branch | grep "${BUGFIX}"
     ;;    
 
   "goto")
