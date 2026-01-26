@@ -93,7 +93,7 @@ function switch_system {
 
 # git
 
-alias status='git status'
+alias status='vc status'
 alias diff='git diff'
 alias stat='git diffstat'
 alias commit='git commit'
