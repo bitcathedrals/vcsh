@@ -41,6 +41,7 @@ BUGFIX="bugfix"
 RELEASE="release"
 TAG="release"
 VERSION=""
+DATE='--date=format:"%d/%b/%Y (%a) [%H%:%M]"'
 
 #
 # vc.sh, required and overrides
@@ -105,15 +106,182 @@ function create_tag {
   fi
 }
 
-function get_last_commit_type {
-  if [[ $1 == "release" ]]
+function git_log_options {
+  merges='false'
+  upstream="false"
+  spec=""
+
+  show=""
+  color=""
+
+  files=()
+
+  type="changes"
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == ":custom" ]]
+    then
+      type="custom"
+      shift
+
+      spec=$1
+      shift
+
+      if [[ -z $spec ]]
+      then
+        echo >/dev/stderr "vcsh: git_log_options - :custom with no spec. aborting"
+        exit 1
+      fi
+
+      continue
+    fi
+
+    if [[ "$1" == ":upstream" ]]
+    then
+      upstream='true'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":no-merges" ]]
+    then
+      merge_flags=("--first-parent")
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":only-merges" ]]
+    then
+      merges='true'
+      merge_flags=("--merges")
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":merge" ]]
+    then
+      merges='true'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-details" ]]
+    then
+      show="--pretty=fuller"
+      shift
+      continue
+    fi
+
+    if [[ $1 == "-compact" ]]
+    then
+      show="--oneline"
+      shift
+      continue
+    fi
+
+   if [[ $1 == "-graph" ]]
+    then
+      shift
+      
+      if [[ $merges == 'false' ]]
+      then
+        echo >/dev/stderr "vcsh: ignoring -graph flag as merges == false and graphs are noise without merges"
+        continue
+      fi
+
+      show="--graph"
+      continue
+    fi
+
+    if [[ $1 == "-decorate" ]]
+    then
+      show="--decorate"
+      shift
+      continue
+    fi
+
+    files+=($1)
+    shift  
+  done
+
+  if [[ -z $show && "$DETAILS" == "full" ]]
   then
-    last=`git tag | grep release | sort -V | tail -n 1`
-    git log --oneline "${last}..develop" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
-  else
-    root_to_branch
-    git log --oneline "${root}..${branch}" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
+    show="--pretty=fuller"
   fi
+
+  if [[ -z $show && "$DETAILS" == "compact" ]]
+  then
+    show="--oneline"
+  fi
+
+  color=""
+
+  if [[ "$COLOR" == "yes" ]]
+  then
+    color="--color"
+  fi
+
+  if [[ ${#files[@]} -gt 0 ]]
+  then
+    for f in ${files[@]}
+    do
+      if [[ ! -f $f ]]
+      then
+        echo "vcsh: file \"$f\" does not exist! abort."
+        exit 1
+      fi
+    done
+  fi
+
+  case $type in
+    "changes")
+      if [[ "$upstream" == 'true' ]]
+      then
+        spec="HEAD..@{upstream}"
+      else
+        root_to_branch
+        spec="${root}..${branch}"
+      fi
+    ;;
+    "merge")
+      if [[ "$upstream" == 'true' ]]
+      then
+        spec="HEAD...@{upstream}"
+      else
+        root_to_branch
+        spec="${root}...${branch}"
+      fi
+    ;;
+    "custom")
+    ;;
+    *)
+      echo >/dev/stderr "vcsh: history type not specified"
+      exit 1
+    ;;
+  esac
+
+  pre_history=("$color" $merge_flags "$show" "$spec")
+
+  if [[ ${#files[@]} -gt 0 ]]
+  then
+    post_history=("--follow" "--" ${files[@]})
+  fi
+}
+
+function get_semantics {
+  type=$1
+  filter=$2;
+
+  if [[ $1 == "-main" ]]
+  then
+    last_release=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
+    git_log_options :no-merges -compact :custom "${last_release}..${MAIN}"
+  else
+    git_log_options :no-merges -compact :custom "${MAIN}..${INTEGRATION}"
+  fi
+
+  git log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
 }
 
 function print_report {
@@ -167,6 +335,7 @@ $refactor
 MESSAGE
   fi
 }
+
 
 case $1 in
   "tools-zshrc")
@@ -478,23 +647,20 @@ case $1 in
 
     git branch -u $REMOTE/$BRANCH
     ;;
-  "release-report")
-    features=`get_last_commit_type release feat`
-    bugs=`get_last_commit_type release bug`
-    issues=`get_last_commit_type release issue`
-    syncs=`get_last_commit_type release sync`
-    fixes=`get_last_commit_type release fix`
-    refactor=`get_last_commit_type release refactor`
+  "report")
+    main=""
 
-    print_report
-    ;;
-  "status-report")
-    features=`get_last_commit_type status feat`
-    bugs=`get_last_commit_type status bug`
-    issues=`get_last_commit_type status issue`
-    syncs=`get_last_commit_type status sync`
-    fixes=`get_last_commit_type status fix`
-    refactor=`get_last_commit_type status refactor`
+    if [[ $1 == "-main" ]]
+    then
+      main="-main"
+    fi
+
+    features=`get_semantics $main feat`
+    bugs=`get_semantics $main bug`
+    issues=`get_semantics $main issue`
+    syncs=`get_semantics $main sync`
+    fixes=`get_semantics $main fix`
+    refactor=`get_semantics $main refactor`
 
     print_report
     ;;
@@ -559,17 +725,20 @@ case $1 in
     git log --merges --oneline
     ;;
   "releases")
-    git tag | grep release | sort -V
+    git tag | grep release | sort -V | grep -v -E '^$'
     ;;
   "history")
-    echo ">>>showing history"
-    git log --oneline
+    shift
+
+    git_log_options :no-merges $@
+
+    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
-    root_to_branch
+    shift
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}..${branch}" --oneline | grep -v -E '^$'
+    git_log_options :merge $@
+    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "behind")
     root_to_branch
@@ -781,8 +950,7 @@ pending    = show log of commits that are not in root or branch (to be merged)
 delta      = show diff between feature and develop or last release and develop
 preview    = show diff between root and branch that is not in both (to be merged)
 
-release-report  = generate a report of changes since last release
-status-report = generate a report of changes ahead of the trunk
+report  = generate a report of changes since last release
 
 graph      = show history between feature and develop or last release and develop
 upstream   = show upstream changes that havent been merged yet
