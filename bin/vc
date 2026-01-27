@@ -72,14 +72,14 @@ function create_tag {
 
   if [[ -z $FEATURE ]]
   then
-    echo "tag-${TYPE} requires the feature as the first argument"
+    echo >/dev/stderr "tag-${TYPE} requires the feature as the first argument"
   fi
 
   MESSAGE=$3
 
   if [[ -z $MESSAGE ]]
   then
-    echo "tag-${TYPE} requires description as the second argument"
+    echo >/dev/stderr "tag-${TYPE} requires description as the second argument"
   fi
 
   if git tag | grep "${TYPE}-${USER}/${FEATURE}"
@@ -93,7 +93,7 @@ function create_tag {
     TAG_NAME="${TYPE}-${USER}/${FEATURE}(1)"
   fi
 
-  echo "tag name is: $TAG_NAME"
+  echo >/dev/stderr "tag name is: $TAG_NAME"
 
   read -p "create tag? [y/n]: " choice
 
@@ -101,7 +101,7 @@ function create_tag {
   then
     git tag -a $TAG_NAME -m $MESSAGE
   else
-    echo "tag-alpha: aborting!"
+    echo >/dev/stderr "tag-alpha: aborting!"
     exit 1
   fi
 }
@@ -228,7 +228,7 @@ function git_log_options {
     do
       if [[ ! -f $f ]]
       then
-        echo "vcsh: file \"$f\" does not exist! abort."
+        echo >/dev/stderr "vcsh: file \"$f\" does not exist! abort."
         exit 1
       fi
     done
@@ -340,7 +340,7 @@ MESSAGE
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
-    echo >/dev/stderr "vcsh: replaced .zshrc with upstream version"
+    echo >/dev/stderr >/dev/stderr "vcsh: replaced .zshrc with upstream version"
     ;;
   "tools-custom")
     cp "${VCSH_SHELL}/zshrc.custom" $HOME/.zshrc.custom
@@ -413,7 +413,7 @@ case $1 in
 
     if [[ -z "$1" || -z "$2" || -z "$3" ]]
     then
-      echo "vcsh: add submodule command requires <repo> <branch> <local>"
+      echo >/dev/stderr "vcsh: add submodule command requires <repo> <branch> <local>"
       exit 1
     fi
 
@@ -694,8 +694,8 @@ case $1 in
     ;;
   "fetch")
     git fetch
-    git fetch origin main
-    git fetch origin develop
+    git fetch origin ${MAIN}
+    git fetch origin ${INTEGRATION}
     ;;
   "pull")
     git pull --no-ff
@@ -709,17 +709,15 @@ case $1 in
     echo ">>>showing summary between $root and $branch"
     git diff "${root}..${branch}" --stat
     ;;
-  "delta")
+  "changes")
     root_to_branch
-
-    echo ">>>showing delta between $root and $branch"
     git diff "${root}..${branch}"
     ;;
   "preview")
     root_to_branch
 
-    echo ">>>showing delta of not in either root or branch"
-    git diff "${root}...${branch}" | grep -v -E '^$'
+    echo ">>>showing changes of not in either root or branch"
+    git diff "${root}...${branch}"
     ;;
   "merges")
     git log --merges --oneline
@@ -731,7 +729,6 @@ case $1 in
     shift
 
     git_log_options :no-merges $@
-
     git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
@@ -947,7 +944,7 @@ behind     = show log of commit in parent but not branch
 summary    = show diffstat of summary between feature and develop or last release and develop
 pending    = show log of commits that are not in root or branch (to be merged)
 
-delta      = show diff between feature and develop or last release and develop
+changes      = show diff between feature and develop or last release and develop
 preview    = show diff between root and branch that is not in both (to be merged)
 
 report  = generate a report of changes since last release
