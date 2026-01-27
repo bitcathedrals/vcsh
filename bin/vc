@@ -391,16 +391,6 @@ case $1 in
     $VCSH_ARCH_COMMAND brew install $*
   ;;
 
-  "dependencies-python")
-    DEPS="gnutls openssl readline ncurses gcc autoconf automake libtool pkg-config gettext"
-
-    eval $(${DEP_BREW}bin/brew shellenv)
-
-    OPENSSL=$(${DEP_BREW}bin/brew --prefix openssl)
-
-    $VCSH_ARCH_COMMAND brew install $DEPS
-  ;;
-
   #
   # modules
   #
@@ -720,7 +710,10 @@ case $1 in
     git diff "${root}...${branch}"
     ;;
   "merges")
-    git log --merges --oneline
+    shift
+
+    git_log_options $@
+    git log "$DATE" ":only-merges" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "releases")
     git tag | grep release | sort -V | grep -v -E '^$'
@@ -744,6 +737,10 @@ case $1 in
     git log "${branch}..${root}" --oneline
     ;;
   "pending")
+    git_log_options :merge $@
+    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    ;;
+
     root_to_branch
 
     echo ">>>showing commits in $branch not $root (parent)"
@@ -947,7 +944,7 @@ pending    = show log of commits that are not in root or branch (to be merged)
 changes      = show diff between feature and develop or last release and develop
 preview    = show diff between root and branch that is not in both (to be merged)
 
-report  = generate a report of changes since last release
+report [-release] = generate a report of changes since integration
 
 graph      = show history between feature and develop or last release and develop
 upstream   = show upstream changes that havent been merged yet
