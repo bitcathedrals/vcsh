@@ -345,7 +345,7 @@ function git_log_options {
     "custom")
     ;;
     *)
-      echo >/dev/stderr "vcsh: history type not specified"
+      error "git_log_options" "NA" "log type not specified"
       exit 1
     ;;
   esac
@@ -816,6 +816,13 @@ case $1 in
         continue
       fi
 
+      if [[ $1 == "-v" ]]
+      then
+        VERBOSE='yes'
+        shift
+        continue
+      fi
+
       error "preview" "NA" "produce log,diff,diffstat of commits to merge" "unknown argument: $1"
       shift
     done
@@ -1076,7 +1083,7 @@ merges     = show merges only
 releases   = show releases (tags)
 
 history    = show commit history
-pending    = show log of commits that are not in root or branch (to be mer
+pending    = [ -stat -color -diff -v ] commits not in root or branch
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
 ged)
