@@ -222,6 +222,34 @@ function create_tag {
   fi
 }
 
+#
+# git_log_options
+#
+
+# :custom <branch>...?<trunk> or <trunk>...?<branch>
+# :upstream     = execute against upstream branch
+# :no-merges    = do not show merges
+# :only-merges  = only show merges
+# :merge        = use ... spec to show changes not in <trunk> and <branch>
+# :details      = show "fuller" details
+# -compact      = show oneline compact form
+# -graph        = show graph of commit history
+# -decorate     = decorate history with branch information
+# -color        = color history output
+# -no-color     = don't color history output
+# @             = files to operate on, only a single file is legal git.
+
+#
+# return
+#
+
+# STATUS           = 0 if succesful, 1 if there was an error
+
+# pre_history[@]   = this array contains the options that follow
+#                    a git command, but before inserted options
+#                    and post_history
+# post_history[@]  = this array contains the options that are
+#                    at the end of a git command.
 function git_log_options {
   merges='false'
   upstream="false"
@@ -246,8 +274,7 @@ function git_log_options {
 
       if [[ -z $spec ]]
       then
-        echo >/dev/stderr "vcsh: git_log_options - :custom with no spec. aborting"
-        exit 1
+        abort "git_log_options" "processing :custom spec" "NA"
       fi
 
       continue
@@ -324,6 +351,13 @@ function git_log_options {
       continue
     fi
 
+    if [[ $1 == "-no-color" ]]
+    then
+      COLOR="no"
+      shift
+      continue
+    fi
+
     files+=($1)
     shift  
   done
@@ -396,6 +430,10 @@ function git_log_options {
   return 0
 }
 
+#
+# get_semantics
+#
+
 function get_semantics {
   type=$1
   filter=$2;
@@ -408,7 +446,7 @@ function get_semantics {
     git_log_options :no-merges -compact :custom "${MAIN}..${INTEGRATION}"
   fi
 
-  git log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
+  try "git" "get_semantics (for report)" log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
 }
 
 function print_report {
