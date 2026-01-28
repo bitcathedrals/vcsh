@@ -809,6 +809,13 @@ case $1 in
         continue
       fi
 
+      if [[ $1 == "-no-color" ]]
+      then
+        COLOR='no'
+        shift
+        continue
+      fi
+
       if [[ $1 == "-diff" ]]
       then
         diff='yes'
@@ -829,9 +836,9 @@ case $1 in
 
     root_to_branch
 
-    if [[ -n $diff ]]
+    if [[ "$diff" == "yes" ]]
     then
-      try "git" "produce a diff of commits to merge" diff "${root}...${branch}"
+      try "git" "pending" "produce a diff of commits to merge" diff "${root}...${branch}"
       exit $?
     fi
 
@@ -1083,7 +1090,7 @@ merges     = show merges only
 releases   = show releases (tags)
 
 history    = show commit history
-pending    = [ -stat -color -diff -v ] commits not in root or branch
+pending    = [ -stat -color -no-color -diff -v ] commits not in root or branch
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
 ged)
