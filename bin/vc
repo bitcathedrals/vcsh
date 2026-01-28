@@ -41,13 +41,95 @@ BUGFIX="bugfix"
 RELEASE="release"
 TAG="release"
 VERSION=""
-DATE='--date=format:"%d/%b/%Y (%a) [%H%:%M]"'
+
+DATE_ARG="--date="
+DATE_DEFAULT="relative"
+
+VERBOSITY='no'
 
 #
 # vc.sh, required and overrides
 #
 
 test -f vc.sh && source vc.sh
+
+DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
+
+function verbosity {
+  if [[ $VERBOSE == 'no' ]]
+  then
+    return
+  fi
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  echo "$#"
+
+  info=""
+
+  if [[ $# -gt 0 ]]
+  then
+    info="> $*"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] $describe $info"
+}
+
+function error {
+  task=$1
+  shift
+
+  status=$1
+  shift
+
+  describe=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] error! (${status}) ${describe} > $*"
+}
+
+function abort {
+  task=$1
+  shift
+
+  describe=$2
+  shift
+
+  status=$3
+  shift
+
+  echo >/dev/stderr "vc: [${task}] abort! (${status}) $describe > \"$*\""
+  exit 1
+}
+
+function try {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  verbosity "$task" "$describe" "$command" $@
+
+  $command $@
+  
+  status=$?
+
+  if [[ $status -gt 0 ]]
+  then
+    error "$task" "$status" "$describe" $@
+  fi
+
+  return $status
+}
+
 
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
@@ -180,14 +262,14 @@ function git_log_options {
       continue
     fi
 
-   if [[ $1 == "-graph" ]]
+    if [[ $1 == "-graph" ]]
     then
       shift
       
       if [[ $merges == 'false' ]]
       then
-        echo >/dev/stderr "vcsh: ignoring -graph flag as merges == false and graphs are noise without merges"
-        continue
+        error "git_log_options" "NA" "ignoring -graph flag as merges is false and graphs are noise without merges"
+        return 1
       fi
 
       show="--graph"
@@ -197,6 +279,13 @@ function git_log_options {
     if [[ $1 == "-decorate" ]]
     then
       show="--decorate"
+      shift
+      continue
+    fi
+
+    if [[ $1 == "-color" ]]
+    then
+      COLOR="yes"
       shift
       continue
     fi
@@ -244,7 +333,7 @@ function git_log_options {
         spec="${root}..${branch}"
       fi
     ;;
-    "merge")
+    "merges")
       if [[ "$upstream" == 'true' ]]
       then
         spec="HEAD...@{upstream}"
@@ -261,12 +350,16 @@ function git_log_options {
     ;;
   esac
 
-  pre_history=("$color" $merge_flags "$show" "$spec")
+  pre_history=("$DATE" "$color" $merge_flags "$show" "$spec")
 
   if [[ ${#files[@]} -gt 0 ]]
   then
     post_history=("--follow" "--" ${files[@]})
   fi
+
+  verbosity "git_log_options" "generated options" ${pre_history[@]} ${post_history[@]}
+
+  return 0
 }
 
 function get_semantics {
@@ -693,21 +786,52 @@ case $1 in
   "staged")
     git diff --cached
     ;;
-  "summary")
+  "pending")
+    shift
+
+    diff=""
+    stat=""
+    color=""
+
+    while [[ $# -gt 0 ]]
+    do
+      if [[ $1 == "-stat" ]]
+      then
+        stat="--stat"
+        shift
+        continue
+      fi
+
+      if [[ $1 == "-color" ]]
+      then
+        COLOR='yes'
+        shift
+        continue
+      fi
+
+      if [[ $1 == "-diff" ]]
+      then
+        diff='yes'
+        shift
+        continue
+      fi
+
+      error "preview" "NA" "produce log,diff,diffstat of commits to merge" "unknown argument: $1"
+      shift
+    done
+
     root_to_branch
 
-    echo ">>>showing summary between $root and $branch"
-    git diff "${root}..${branch}" --stat
-    ;;
-  "changes")
-    root_to_branch
-    git diff "${root}..${branch}"
-    ;;
-  "preview")
-    root_to_branch
+    if [[ -n $diff ]]
+    then
+      try "git" "produce a diff of commits to merge" diff "${root}...${branch}"
+      exit $?
+    fi
 
-    echo ">>>showing changes of not in either root or branch"
-    git diff "${root}...${branch}"
+    git_log_options :merge $@
+
+    try "git" "pending" 'show stat of commits not in root or branch' log ${pre_history[@]} $stat ${post_history[@]} | grep -v -E '^$'
+    exit $?
     ;;
   "merges")
     shift
@@ -721,36 +845,52 @@ case $1 in
   "history")
     shift
 
-    git_log_options :no-merges $@
-    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+    fi
+
+    git_log_options $@
+    try "git" "history" 'show commits on current branch' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
     shift
 
-    git_log_options :merge $@
-    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+    fi
+
+    git_log_options $@
+    try "git" "ahead" 'show commits in branch, not trunk' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "behind")
-    root_to_branch
+    shift
 
-    echo ">>>showing commits in $root (parent) not $branch"
-    git log "${branch}..${root}" --oneline
-    ;;
-  "pending")
-    git_log_options :merge $@
-    git log "$DATE" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
-    ;;
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+    fi
 
     root_to_branch
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}...${branch}" --oneline | grep -v -E '^$'
+    git_log_options $@ :custom "${branch}..${root}"
+    try "git" "behind" 'show commits on trunk not in branch $branch -> $root' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "graph")
-    root_to_branch
+    shift
 
-    echo ">>>showing history between $root and $branch"
-    git log "${root}..${branch}" --oneline --graph --decorate --all
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+    fi
+
+    git_log_options -compact -graph -decorate
+    git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "upstream")
     root_to_branch norelease
@@ -934,19 +1074,15 @@ pull       = pull current branch no ff
 staged     = show staged changes
 merges     = show merges only
 releases   = show releases (tags)
-history    = show commit history
 
+history    = show commit history
+pending    = show log of commits that are not in root or branch (to be mer
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
-summary    = show diffstat of summary between feature and develop or last release and develop
-pending    = show log of commits that are not in root or branch (to be merged)
-
-changes      = show diff between feature and develop or last release and develop
-preview    = show diff between root and branch that is not in both (to be merged)
+ged)
 
 report [-release] = generate a report of changes since integration
 
-graph      = show history between feature and develop or last release and develop
 upstream   = show upstream changes that havent been merged yet
 sync       = merge from the root branch commits not in this branch no ff
 
