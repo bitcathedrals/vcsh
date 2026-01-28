@@ -67,8 +67,6 @@ function verbosity {
   describe=$1
   shift
 
-  echo "$#"
-
   info=""
 
   if [[ $# -gt 0 ]]
@@ -124,7 +122,7 @@ function try {
 
   if [[ $status -gt 0 ]]
   then
-    error "$task" "$status" "$describe" $@
+    error "$task" "$command $status" "$describe" $@
   fi
 
   return $status
@@ -850,8 +848,8 @@ case $1 in
   "merges")
     shift
 
-    git_log_options $@
-    git log "$DATE" ":only-merges" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    git_log_options ":only-merges" $@
+    git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "releases")
     git tag | grep release | sort -V | grep -v -E '^$'
