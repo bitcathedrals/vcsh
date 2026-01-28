@@ -55,6 +55,14 @@ test -f vc.sh && source vc.sh
 
 DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
 
+#
+# verbosity - print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
 function verbosity {
   if [[ $VERBOSE == 'no' ]]
   then
@@ -77,6 +85,15 @@ function verbosity {
   echo >/dev/stderr "vc: [${task}] $describe $info"
 }
 
+#
+# error - produce a formatted error message but do
+#         not exit
+#
+
+# task        = the task that failed
+# status      = the exit status of the command that failed
+# description = description of the task that failed
+
 function error {
   task=$1
   shift
@@ -89,6 +106,14 @@ function error {
 
   echo >/dev/stderr "vc: [${task}] error! (${status}) ${describe} > $*"
 }
+
+#
+# abort - print error information and exit 1
+#
+
+# task          = the task that failed
+# description   = description of what failed
+# status        = the exit status of the command that failed
 
 function abort {
   task=$1
@@ -104,6 +129,17 @@ function abort {
   exit 1
 }
 
+#
+# try - try to execute a command with verbosity and error calls
+#       baked in.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
 function try {
   command=$1
   shift
@@ -849,7 +885,7 @@ case $1 in
     shift
 
     git_log_options ":only-merges" $@
-    git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "merges" "log of merges only" git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "releases")
     git tag | grep release | sort -V | grep -v -E '^$'
