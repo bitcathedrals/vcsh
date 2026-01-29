@@ -119,13 +119,23 @@ function abort {
   task=$1
   shift
 
-  describe=$2
+  describe=$1
   shift
 
-  status=$3
+  exit_code=""
+
+  if [[ $# -gt 0 ]]
+  then
+    exit_code=$1
+  fi
   shift
 
-  echo >/dev/stderr "vc: [${task}] abort! (${status}) $describe > \"$*\""
+  if [[ -n $exit_code ]]
+  then
+    exit_code="(${exit_code})"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] abort! $exit_code $describe > \"$*\""
   exit 1
 }
 
@@ -152,6 +162,8 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
+  status=""
+
   $command $@
   
   status=$?
@@ -160,6 +172,8 @@ function try {
   then
     error "$task" "$command $status" "$describe" $@
   fi
+
+  echo "status is $status"
 
   return $status
 }
@@ -223,42 +237,38 @@ function create_tag {
 }
 
 #
-# git_log_options
+# git_options
 #
 
-# :custom <branch>...?<trunk> or <trunk>...?<branch>
-# :upstream     = execute against upstream branch
-# :no-merges    = do not show merges
-# :only-merges  = only show merges
-# :merge        = use ... spec to show changes not in <trunk> and <branch>
-# :details      = show "fuller" details
-# -compact      = show oneline compact form
-# -graph        = show graph of commit history
-# -decorate     = decorate history with branch information
-# -color        = color history output
-# -no-color     = don't color history output
-# @             = files to operate on, only a single file is legal git.
+# :custom          = <branch>...?<trunk> or <trunk>...?<branch>
+# :upstream        = execute against upstream branch
+# :no-merges       = do not show merges
+# :only-merges     = only show merges
+# :merge           = use ... spec to show changes not in <trunk> and <branch>
+
+# @                = files to operate on, only a single file is legal git.
+
+# DATE             = date format
+# COLOR            = yes/no show in color
+# SHOW             = flags for output type and format
+# VC_ARGS          = remaining arguments from common option processing
 
 #
-# return
+# return STATUS    = 0 if succesful, 1 if there was an error
 #
 
-# STATUS           = 0 if succesful, 1 if there was an error
+# 
 
 # pre_history[@]   = this array contains the options that follow
 #                    a git command, but before inserted options
 #                    and post_history
 # post_history[@]  = this array contains the options that are
 #                    at the end of a git command.
-function git_log_options {
+function git_options {
   merges='false'
   upstream="false"
+
   spec=""
-
-  show=""
-  color=""
-
-  files=()
 
   type="changes"
 
@@ -274,7 +284,7 @@ function git_log_options {
 
       if [[ -z $spec ]]
       then
-        abort "git_log_options" "processing :custom spec" "NA"
+        abort "git_options" ":custom spec was missing"
       fi
 
       continue
@@ -296,7 +306,7 @@ function git_log_options {
 
     if [[ "$1" == ":only-merges" ]]
     then
-      merges='true'
+      merging='true'
       merge_flags=("--merges")
       shift
       continue
@@ -304,89 +314,19 @@ function git_log_options {
 
     if [[ "$1" == ":merge" ]]
     then
-      merges='true'
+      merging='true'
       shift
       continue
     fi
-
-    if [[ "$1" == "-details" ]]
-    then
-      show="--pretty=fuller"
-      shift
-      continue
-    fi
-
-    if [[ $1 == "-compact" ]]
-    then
-      show="--oneline"
-      shift
-      continue
-    fi
-
-    if [[ $1 == "-graph" ]]
-    then
-      shift
-      
-      if [[ $merges == 'false' ]]
-      then
-        error "git_log_options" "NA" "ignoring -graph flag as merges is false and graphs are noise without merges"
-        return 1
-      fi
-
-      show="--graph"
-      continue
-    fi
-
-    if [[ $1 == "-decorate" ]]
-    then
-      show="--decorate"
-      shift
-      continue
-    fi
-
-    if [[ $1 == "-color" ]]
-    then
-      COLOR="yes"
-      shift
-      continue
-    fi
-
-    if [[ $1 == "-no-color" ]]
-    then
-      COLOR="no"
-      shift
-      continue
-    fi
-
-    files+=($1)
-    shift  
   done
 
-  if [[ -z $show && "$DETAILS" == "full" ]]
+  if [[ ${#VC_ARGS[@]} -gt 0 ]]
   then
-    show="--pretty=fuller"
-  fi
-
-  if [[ -z $show && "$DETAILS" == "compact" ]]
-  then
-    show="--oneline"
-  fi
-
-  color=""
-
-  if [[ "$COLOR" == "yes" ]]
-  then
-    color="--color"
-  fi
-
-  if [[ ${#files[@]} -gt 0 ]]
-  then
-    for f in ${files[@]}
+    for f in ${VC_ARGS[@]}
     do
       if [[ ! -f $f ]]
       then
-        echo >/dev/stderr "vcsh: file \"$f\" does not exist! abort."
-        exit 1
+        abort "git_options" "processing unrecognized arguments" "NA" "file \"$f\" does not exist"
       fi
     done
   fi
@@ -401,7 +341,7 @@ function git_log_options {
         spec="${root}..${branch}"
       fi
     ;;
-    "merges")
+    "merging")
       if [[ "$upstream" == 'true' ]]
       then
         spec="HEAD...@{upstream}"
@@ -413,40 +353,156 @@ function git_log_options {
     "custom")
     ;;
     *)
-      error "git_log_options" "NA" "log type not specified"
+      error "git_options" "NA" "log type not specified"
       exit 1
     ;;
   esac
 
-  pre_history=("$DATE" "$color" $merge_flags "$show" "$spec")
+  case $COLOR in
+    "yes")
+      COLOR="--color"
+    ;;
+    "no")
+      COLOR=""
+    ;;
+  esac
+
+  pre_history=("$DATE" "$COLOR" $merge_flags "$spec")
+
+  post_history=("$SHOW" "$STAT")
 
   if [[ ${#files[@]} -gt 0 ]]
   then
-    post_history=("--follow" "--" ${files[@]})
+    post_history+=(${post_history[@]} "--follow" "--" ${files[@]})
   fi
 
-  verbosity "git_log_options" "generated options" ${pre_history[@]} ${post_history[@]}
+  verbosity "git_options" "generated options" ${pre_history[@]} ${post_history[@]}
 
   return 0
 }
 
 #
-# get_semantics
+# vc_git_common_args - process CLI arguments for git_options
 #
 
-function get_semantics {
+# -compact      = show oneline compact form
+# -stat         = show diffstat output
+# -graph        = show graph of commit history
+# -details      = show branch details in log output
+# -decorate     = decorate history with branch information
+# -color        = color history output
+# -no-color     = don't color history output
+# -v            = verbose
+
+# return
+
+# SHOW          = git flag to specify output type
+# STAT          = git 
+# DIFF          = yes if showing diff instead of logs
+# COLOR         = yes to color output
+# VERBOSE       = yes/no to enable verbosity
+
+function vc_git_common_args {
+  VC_ARGS=()
+
+  SHOW=""
+  STAT=""
+  DIFF="no"
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-stat" ]]
+    then
+      STAT="--stat"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-color" ]]
+    then
+      COLOR='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-no-color" ]]
+    then
+      COLOR='no'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-diff" ]]
+    then
+      DIFF='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-compact" ]]
+    then
+      SHOW="--oneline"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-details" ]]
+    then
+      SHOW="--pretty=fuller"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-graph" ]]
+    then
+      SHOW="--graph"
+      shift
+      continue
+    fi
+
+    VC_ARGS+=$1
+    shift
+  done
+}
+
+#
+# get_semantic_commits
+#
+
+# type   = release|main = return commits by "type" against either release->main or main->integration
+# filter = semantic tag to filter by
+
+function get_semantic_commits {
   type=$1
   filter=$2;
 
-  if [[ $1 == "-main" ]]
-  then
-    last_release=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
-    git_log_options :no-merges -compact :custom "${last_release}..${MAIN}"
-  else
-    git_log_options :no-merges -compact :custom "${MAIN}..${INTEGRATION}"
-  fi
+  case $type in
+    "release")
+      last_release=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
 
-  try "git" "get_semantics (for report)" log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
+      if [[ -z $last_release ]]
+      then
+        abort "get_semantic_commits" "no release tags"
+      fi
+
+      spec="${last_release}..${MAIN}"
+    ;;
+    "integrate")
+      spec="${MAIN}..${INTEGRATION}"
+    ;;
+  esac
+
+  vc_git_common_args -compact -no-color
+  git_options :no-merges :custom "$spec"
+
+  try "git" "get_semantic_commits" log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
 }
 
 function print_report {
@@ -500,7 +556,6 @@ $refactor
 MESSAGE
   fi
 }
-
 
 case $1 in
   "tools-zshrc")
@@ -803,19 +858,28 @@ case $1 in
     git branch -u $REMOTE/$BRANCH
     ;;
   "report")
-    main=""
+    shift
 
-    if [[ $1 == "-main" ]]
+    type="release"
+
+    if [[ $1 == "-v" ]]
     then
-      main="-main"
+      VERBOSE="yes"
     fi
 
-    features=`get_semantics $main feat`
-    bugs=`get_semantics $main bug`
-    issues=`get_semantics $main issue`
-    syncs=`get_semantics $main sync`
-    fixes=`get_semantics $main fix`
-    refactor=`get_semantics $main refactor`
+    if [[ $1 == "-integrate" ]]
+    then
+      type="integrate"
+    fi
+
+    echo "type is: $type"
+
+    features=`get_semantic_commits $type feat`
+    bugs=`get_semantic_commits $type bug`
+    issues=`get_semantic_commits $type issue`
+    syncs=`get_semantic_commits $type sync`
+    fixes=`get_semantic_commits $type fix`
+    refactor=`get_semantic_commits $type refactor`
 
     print_report
     ;;
@@ -861,68 +925,24 @@ case $1 in
   "pending")
     shift
 
-    diff=""
-    stat=""
-    color=""
+    vc_git_common_args $@
 
-    while [[ $# -gt 0 ]]
-    do
-      if [[ $1 == "-stat" ]]
-      then
-        stat="--stat"
-        shift
-        continue
-      fi
+    OP=log
 
-      if [[ $1 == "-color" ]]
-      then
-        COLOR='yes'
-        shift
-        continue
-      fi
-
-      if [[ $1 == "-no-color" ]]
-      then
-        COLOR='no'
-        shift
-        continue
-      fi
-
-      if [[ $1 == "-diff" ]]
-      then
-        diff='yes'
-        shift
-        continue
-      fi
-
-      if [[ $1 == "-v" ]]
-      then
-        VERBOSE='yes'
-        shift
-        continue
-      fi
-
-      error "preview" "NA" "produce log,diff,diffstat of commits to merge" "unknown argument: $1"
-      shift
-    done
-
-    root_to_branch
-
-    if [[ "$diff" == "yes" ]]
+    if [[ "$DIFF" == "yes" ]]
     then
-      try "git" "pending" "produce a diff of commits to merge" diff "${root}...${branch}"
-      exit $?
+      OP=diff
     fi
 
-    git_log_options :merge $@
+    git_options :merge
 
-    try "git" "pending" 'show stat of commits not in root or branch' log ${pre_history[@]} $stat ${post_history[@]} | grep -v -E '^$'
+    try "git" "pending" 'show work not in root' $OP ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     exit $?
     ;;
   "merges")
     shift
 
-    git_log_options ":only-merges" $@
+    git_options ":only-merges" $@
     try "merges" "log of merges only" git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "releases")
@@ -931,61 +951,42 @@ case $1 in
   "history")
     shift
 
-    if [[ "$1" == "-v" ]]
-    then
-      VERBOSE='yes'
-      shift
-    fi
+    vc_git_common_args $@
 
-    git_log_options $@
-    try "git" "history" 'show commits on current branch' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    git_options
+
+    try "git" "history" "show commits on current branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
     shift
 
-    if [[ "$1" == "-v" ]]
-    then
-      VERBOSE='yes'
-      shift
-    fi
+    vc_git_common_args $@
 
-    git_log_options $@
+    git_options $@
+
     try "git" "ahead" 'show commits in branch, not trunk' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "behind")
     shift
 
-    if [[ "$1" == "-v" ]]
-    then
-      VERBOSE='yes'
-      shift
-    fi
+    vc_git_common_args $@
 
-    root_to_branch
+    root_to_branch norelease
 
-    git_log_options $@ :custom "${branch}..${root}"
-    try "git" "behind" 'show commits on trunk not in branch $branch -> $root' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
-    ;;
-  "graph")
-    shift
+    git_options
 
-    if [[ "$1" == "-v" ]]
-    then
-      VERBOSE='yes'
-      shift
-    fi
-
-    git_log_options -compact -graph -decorate
-    git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "behind" "show commits on trunk not in branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "upstream")
-    root_to_branch norelease
+    shift
 
     git fetch origin main
     git fetch origin develop
 
-    echo ">>>showing upstream changes from: ${root}->${branch}"
-    git log --no-merges ${root} ^${branch} --oneline
+    vc_git_common_args $@
+    git_options :upstream
+
+    try "git" "upstream" "show commits upstream not in the branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "sync")
     root_to_branch norelease
@@ -1078,19 +1079,6 @@ case $1 in
 
     git push --tags
     ;;
-  "purge")
-    for cache in $(find . -name '__pycache__' -type d -print)
-    do
-      echo "purging cache: $cache"
-      rm -r $cache
-    done
-
-    for egg in $(find . -name '*.egg-info' -type d -print)
-    do
-      echo "purging build metadata: $egg"
-      rm -r $egg
-    done
-    ;;
   "help"|""|*)
     if [[ -n $2 ]]
     then
@@ -1159,15 +1147,16 @@ pull       = pull current branch no ff
 
 staged     = show staged changes
 merges     = show merges only
+
 releases   = show releases (tags)
+features   = show feature branches
 
 history    = show commit history
-pending    = [ -stat -color -no-color -diff -v ] commits not in root or branch
+pending    = commits not in root or branch
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
-ged)
 
-report [-release] = generate a report of changes since integration
+report     = [-release] = generate a report of changes since integration
 
 upstream   = show upstream changes that havent been merged yet
 sync       = merge from the root branch commits not in this branch no ff
@@ -1182,10 +1171,6 @@ start      = initiate an EDITOR session to update VERSION in python.sh, reload c
 
 release    = execute git flow release finish with VERSION
 upload     = push main and develop branches and tags to remote
-
-[misc]
-
-purge      = remove all the __pycache__ dirs
 HELP
   ;;
 esac
