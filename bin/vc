@@ -173,8 +173,6 @@ function try {
     error "$task" "$command $status" "$describe" $@
   fi
 
-  echo "status is $status"
-
   return $status
 }
 
@@ -955,7 +953,14 @@ case $1 in
 
     git_options
 
-    try "git" "history" "show commits on current branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    OP="log"
+
+    if [[ "$DIFF" == "yes" ]]
+    then
+      OP="diff"     
+    fi
+
+    try "git" "history" "show commits on current branch" $OP ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
     shift
@@ -1000,12 +1005,13 @@ case $1 in
   # release environment
   #
   "check")
-    echo "===> remember to pull deps with update if warranted <==="
 
-    echo "===> fetching new commits from remote <==="
+    verbosity "check" "fetching new commits from remote"
     git fetch origin develop
 
     echo "===> showing unmerged differences <===="
+
+    verbosity "check" "showing unmerged differences"
 
     git log develop..origin/develop --oneline
 
