@@ -1011,7 +1011,7 @@ case $1 in
 
     echo "===> checking if working tree is dirty <==="
 
-    if git diff --quiet
+    if git diff --quiet >/dev/null 2>&1
     then
       echo "working tree clean - proceed!"
     else
