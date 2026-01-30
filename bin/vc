@@ -365,7 +365,19 @@ function git_options {
     ;;
   esac
 
-  pre_history=("$DATE" "$COLOR" $merge_flags "$spec")
+  OP="log"
+
+  if [[ "$DIFF" == 'yes' ]]
+  then
+    OP="diff"
+  fi
+
+  if [[ "$EMACS" == 'yes' ]]
+  then
+    OP="difftool"
+  fi
+
+  pre_history=($OP "$DATE" "$COLOR" $merge_flags "$spec")
 
   post_history=("$SHOW" "$STAT")
 
@@ -391,7 +403,8 @@ function git_options {
 # -color        = color history output
 # -no-color     = don't color history output
 # -v            = verbose
-
+# -diff         = use a diff operation
+# -emacs        = use emacs as a difftool or mergetool
 # return
 
 # SHOW          = git flag to specify output type
@@ -406,6 +419,7 @@ function vc_git_common_args {
   SHOW=""
   STAT=""
   DIFF="no"
+  EMACS="no"
 
   while [[ $# -gt 0 ]]
   do
@@ -440,6 +454,13 @@ function vc_git_common_args {
     if [[ "$1" == "-diff" ]]
     then
       DIFF='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-emacs" ]]
+    then
+      EMACS='yes'
       shift
       continue
     fi
@@ -732,23 +753,19 @@ case $1 in
 
     if [[ -z $name ]]
     then
-      echo "vcsh end: requires the name of the feature branch to close"
-      exit 1
+      abort "end" "get name of branch from arguments" "NA"
     fi
 
     if ! git branch | grep "${FEATURE}/${name}"
     then
-      echo "vcsh end: feature branch ${name} not found."
-      exit 1
+      abort "end" "feature branch ${name} not found" "NA"
     fi
 
     if ! git checkout "${INTEGRATION}"
     then
-      echo "vcsh end: error swithing to ${INTEGRATION} branch for merging"
-      exit 1
+      abort "end" "error swithing to ${INTEGRATION} branch for merging ${name}" "NA"
     fi
     ;;
-
   "features")
     git branch | grep "${FEATURE}"
     ;;
@@ -925,23 +942,16 @@ case $1 in
 
     vc_git_common_args $@
 
-    OP=log
-
-    if [[ "$DIFF" == "yes" ]]
-    then
-      OP=diff
-    fi
-
     git_options :merge
 
-    try "git" "pending" 'show work not in root' $OP ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "pending" 'show work not in root' ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     exit $?
     ;;
   "merges")
     shift
 
     git_options ":only-merges" $@
-    try "merges" "log of merges only" git log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "merges" "log of merges only" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "releases")
     git tag | grep release | sort -V | grep -v -E '^$'
@@ -953,14 +963,7 @@ case $1 in
 
     git_options
 
-    OP="log"
-
-    if [[ "$DIFF" == "yes" ]]
-    then
-      OP="diff"     
-    fi
-
-    try "git" "history" "show commits on current branch" $OP ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "history" "show commits on current branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "ahead")
     shift
@@ -969,7 +972,7 @@ case $1 in
 
     git_options $@
 
-    try "git" "ahead" 'show commits in branch, not trunk' log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "ahead" 'show commits in branch, not trunk' ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "behind")
     shift
@@ -980,7 +983,7 @@ case $1 in
 
     git_options
 
-    try "git" "behind" "show commits on trunk not in branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "behind" "show commits on trunk not in branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "upstream")
     shift
@@ -991,7 +994,7 @@ case $1 in
     vc_git_common_args $@
     git_options :upstream
 
-    try "git" "upstream" "show commits upstream not in the branch" log ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "upstream" "show commits upstream not in the branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "sync")
     root_to_branch norelease
