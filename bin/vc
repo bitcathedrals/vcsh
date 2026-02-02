@@ -372,7 +372,7 @@ function git_options {
     OP="diff"
   fi
 
-  if [[ "$EMACS" == 'yes' ]]
+  if [[ "$TOOL" == 'yes' ]]
   then
     OP="difftool"
   fi
@@ -419,7 +419,7 @@ function vc_git_common_args {
   SHOW=""
   STAT=""
   DIFF="no"
-  EMACS="no"
+  TOOL="no"
 
   while [[ $# -gt 0 ]]
   do
@@ -458,9 +458,9 @@ function vc_git_common_args {
       continue
     fi
 
-    if [[ "$1" == "-emacs" ]]
+    if [[ "$1" == "-tool" ]]
     then
-      EMACS='yes'
+      TOOL='yes'
       shift
       continue
     fi
@@ -901,14 +901,14 @@ case $1 in
   "info")
     git branch -vv
 
-    echo "[staged]"
-    git diff --staged | diffstat
-
-    echo "[changes]"
-    git diff | diffstat
-
     echo "[untracked]"
     git ls-files -o --exclude-standard
+
+    echo "[staged]"
+    git diff --staged --stat
+
+    echo "[changes]"
+    git diff --stat
     ;;
   "verify")
     exec git log --show-signature $@
@@ -923,7 +923,6 @@ case $1 in
     ;;
   "status")
     git status | grep -v -E '^$'
-    git submodule foreach 'git status | grep -v -E "^$"'
     git diff --stat | grep -v -E '^$'
     ;;
   "fetch")
@@ -985,16 +984,22 @@ case $1 in
 
     try "git" "behind" "show commits on trunk not in branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
-  "upstream")
+  "upload")
+    git push origin "${MAIN}:${MAIN}"
+    git push origin "${INTEGRATION}:${INTEGRATION}"
+
+    git push --tags
+    ;;
+  "down")
     shift
 
-    git fetch origin main
-    git fetch origin develop
+    git fetch origin ${MAIN}
+    git fetch origin ${INTEGRATION}
 
     vc_git_common_args $@
     git_options :upstream
 
-    try "git" "upstream" "show commits upstream not in the branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try "git" "down" "fetch and show commits upstream not local" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     ;;
   "sync")
     root_to_branch norelease
@@ -1008,7 +1013,6 @@ case $1 in
   # release environment
   #
   "check")
-
     verbosity "check" "fetching new commits from remote"
     git fetch origin develop
 
@@ -1088,7 +1092,7 @@ case $1 in
 
     git push --tags
     ;;
-  "help"|""|*)
+  "help")
     if [[ -n $2 ]]
     then
       filter="$2"
@@ -1155,8 +1159,8 @@ pull       = pull current branch no ff
 [show log/diff/reports]
 
 staged     = show staged changes
-merges     = show merges only
 
+merges     = show merges only
 releases   = show releases (tags)
 features   = show feature branches
 
@@ -1167,7 +1171,9 @@ behind     = show log of commit in parent but not branch
 
 report     = [-release] = generate a report of changes since integration
 
-upstream   = show upstream changes that havent been merged yet
+up         = push up changes to remote
+down       = pull down and show changes
+
 sync       = merge from the root branch commits not in this branch no ff
 
 [release]
@@ -1181,6 +1187,9 @@ start      = initiate an EDITOR session to update VERSION in python.sh, reload c
 release    = execute git flow release finish with VERSION
 upload     = push main and develop branches and tags to remote
 HELP
+  ;;
+  *)
+    $0 history $@
   ;;
 esac
 
