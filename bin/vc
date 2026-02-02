@@ -162,18 +162,18 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
-  status=""
+  exit_status=""
 
   $command $@
   
-  status=$?
+  exit_status=$?
 
-  if [[ $status -gt 0 ]]
+  if [[ $exit_status -gt 0 ]]
   then
     error "$task" "$command $status" "$describe" $@
   fi
 
-  return $status
+  return $exit_status
 }
 
 
@@ -492,26 +492,32 @@ function vc_git_common_args {
 }
 
 #
-# get_semantic_commits
+# semantic_commits
 #
 
 # type   = release|main = return commits by "type" against either release->main or main->integration
 # filter = semantic tag to filter by
 
-function get_semantic_commits {
-  type=$1
-  filter=$2;
+function semantic_commits {
+  type="current"
+
+  if [[ -n $1 ]]
+  then
+    type=$1
+  fi
+
+  spec=""
 
   case $type in
     "release")
-      last_release=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
+      last=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
 
-      if [[ -z $last_release ]]
+      if [[ -z $last ]]
       then
         abort "get_semantic_commits" "no release tags"
       fi
 
-      spec="${last_release}..${MAIN}"
+      spec="${last}..${MAIN}"
     ;;
     "integrate")
       spec="${MAIN}..${INTEGRATION}"
@@ -519,9 +525,24 @@ function get_semantic_commits {
   esac
 
   vc_git_common_args -compact -no-color
-  git_options :no-merges :custom "$spec"
 
-  try "git" "get_semantic_commits" log ${pre_history[@]} ${post_history[@]} | cut -d ' ' -f 2- | grep -E "^\(${filter}\)"
+  if [[ -n $spec ]]
+  then
+    git_options :no-merges :custom "$spec"
+  else
+    git_options :no-merges
+  fi
+
+  try "git" "semantic_commits" log ${pre_history[@]} ${post_history[@]} | read -r REPORT
+}
+
+function get_semantics {
+  filter=$1;
+
+  if [[ -n $REPORT ]]
+  then
+    echo "$REPORT" | cut -d ' ' -f 2-
+  fi
 }
 
 function print_report {
@@ -875,26 +896,43 @@ case $1 in
   "report")
     shift
 
-    type="release"
+    type=""
 
-    if [[ $1 == "-v" ]]
-    then
-      VERBOSE="yes"
-    fi
+    while [[ $# -gt 0 ]]
+    do
+      if [[ $1 == "-v" ]]
+      then
+        VERBOSE="yes"
+        shift
+        continue
+      fi
 
-    if [[ $1 == "-integrate" ]]
-    then
-      type="integrate"
-    fi
+      if [[ $1 == "-main" ]]
+      then
+        type="release"
+        shift
+        continue
+      fi
 
-    echo "type is: $type"
+      if [[ $1 == "-dev" ]]
+      then
+        type="integrate"
+        shift
+        continue
+      fi
 
-    features=`get_semantic_commits $type feat`
-    bugs=`get_semantic_commits $type bug`
-    issues=`get_semantic_commits $type issue`
-    syncs=`get_semantic_commits $type sync`
-    fixes=`get_semantic_commits $type fix`
-    refactor=`get_semantic_commits $type refactor`
+      abort "report" "unrecognized option: $1" "NA"
+      shift
+    done
+
+    semantic_commits $type
+
+#    features=`get_semantics feat`
+#    bugs=`get_semantics bug`
+#    issues=`get_semantics issue`
+#    syncs=`get_semantics sync`
+#    fixes=`get_semantics fix`
+#    refactor=`get_semantics refactor`
 
     print_report
     ;;
