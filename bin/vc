@@ -841,7 +841,7 @@ case $1 in
       exec git checkout "feature/${name}"
     fi
 
-    if git flow bugfix | grep "$name" >/dev/null 2>&1
+    if git branch bugfix | grep "$name" >/dev/null 2>&1
     then
       echo "vc checking out bugfix: $name" >/dev/stderr
       exec git checkout "bugfix/${name}"
@@ -850,7 +850,6 @@ case $1 in
     echo "vcsh goto: \"$name\" not found in features or bugfixes"
     exit 1
     ;;    
-
   "beta")
     shift
 
