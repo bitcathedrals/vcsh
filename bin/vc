@@ -162,7 +162,7 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
-  if [[ "$DRY"='yes' ]]
+  if [[ "$DRY" = 'yes' ]]
   then
     echo >/dev/stderr "vc noexec: $command $*" 
     return 0
@@ -808,10 +808,6 @@ case $1 in
       abort "end" "error swithing to ${INTEGRATION} branch for merging ${name}" "NA"
     fi
     ;;
-  "features")
-    git branch | grep "${FEATURE}"
-    ;;
-
   "bug")
     shift
     name=$1
@@ -836,11 +832,6 @@ case $1 in
 
     git flow bugfix finish $name
     ;;
-
-  "bugfixes")
-    git branch | grep "${BUGFIX}"
-    ;;    
-
   "goto")
     shift
     name=$1
@@ -957,27 +948,26 @@ case $1 in
     print_report
     ;;
   "info")
-    git branch -vv
+    color=""
+
+    if [[ $1 == "-color" || "$COLOR" == "yes" ]]
+    then
+      color="--color"
+    fi
+
+    git branch -vv $color | grep -v -E '^$'
 
     echo "[untracked]"
     git ls-files -o --exclude-standard
 
     echo "[staged]"
-    git diff --staged --stat
+    git diff --staged --stat $color | grep -v -E '^$'
 
     echo "[changes]"
-    git diff --stat
+    git diff --stat $color | grep -v -E '^$'
     ;;
   "verify")
     exec git log --show-signature $@
-    ;;
-  "since")
-    shift
-
-    from=$1
-    shift
-
-    exec git log --since "$from" $@
     ;;
   "status")
     git status | grep -v -E '^$'
@@ -1004,14 +994,28 @@ case $1 in
     try "git" "pending" 'show work not in root' ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
     exit $?
     ;;
-  "merges")
+  "list")
     shift
 
-    git_options ":only-merges" $@
-    try "git" "merges" "log of merges only" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
-    ;;
-  "releases")
-    git tag | grep release | sort -V | grep -v -E '^$'
+    case $1 in
+      "merges")
+        git_options ":only-merges" $@
+        try "git" "merges" "log of merges only" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+      ;;
+      "releases")
+        git tag | grep release | sort -V | grep -v -E '^$'
+      ;;
+
+      "bugfixes")
+        git branch | grep "${BUGFIX}"
+      ;;    
+      "features")
+        git branch | grep "${FEATURE}"
+      ;;
+      *)
+
+      ;;
+    esac
     ;;
   "history")
     shift
@@ -1210,7 +1214,6 @@ beta       = <feat> <msg> = create a beta tag with the devel branch feature and 
 info       = show branches, tracking, and status
 verify     = show log with signatures for verification
 status     = git state, submodule state, diffstat for changes in tree
-since      = <DATE> pull logs since date, extra <ARGS...> are passed
 fetch      = fetch main, develop, and current branch
 pull       = pull current branch no ff
 
@@ -1218,9 +1221,7 @@ pull       = pull current branch no ff
 
 staged     = show staged changes
 
-merges     = show merges only
-releases   = show releases (tags)
-features   = show feature branches
+list       = <merges|releases|features>
 
 history    = show commit history
 pending    = commits not in root or branch
