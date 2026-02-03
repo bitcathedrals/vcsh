@@ -45,7 +45,7 @@ VERSION=""
 DATE_ARG="--date="
 DATE_DEFAULT="relative"
 
-VERBOSITY='no'
+VERBOSE='no'
 
 #
 # vc.sh, required and overrides
