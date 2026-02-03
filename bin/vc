@@ -947,7 +947,7 @@ case $1 in
 
     print_report
     ;;
-  "info")
+  "status")
     color=""
 
     if [[ $1 == "-color" || "$COLOR" == "yes" ]]
@@ -956,6 +956,8 @@ case $1 in
     fi
 
     git branch -vv $color | grep -v -E '^$'
+
+    git status $color | grep -v -E '^$'
 
     echo "[untracked]"
     git ls-files -o --exclude-standard
@@ -968,10 +970,6 @@ case $1 in
     ;;
   "verify")
     exec git log --show-signature $@
-    ;;
-  "status")
-    git status | grep -v -E '^$'
-    git diff --stat | grep -v -E '^$'
     ;;
   "fetch")
     git fetch
