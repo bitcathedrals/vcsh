@@ -162,6 +162,12 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
+  if [[ "$DRY"='yes' ]]
+  then
+    echo >/dev/stderr "vc noexec: $command $*" 
+    return 0
+  fi
+
   exit_status=""
 
   $command $@
@@ -270,6 +276,11 @@ function git_options {
 
   type="changes"
 
+  if [[ -n $CUSTOM ]]
+  then
+    type="custom"
+  fi
+
   while [[ $# -gt 0 ]]
   do
     if [[ "$1" == ":custom" ]]
@@ -349,12 +360,14 @@ function git_options {
       fi
     ;;
     "custom")
+      spec=$CUSTOM
     ;;
     *)
       error "git_options" "NA" "log type not specified"
       exit 1
     ;;
   esac
+
 
   case $COLOR in
     "yes")
@@ -377,9 +390,9 @@ function git_options {
     OP="difftool"
   fi
 
-  pre_history=($OP "$DATE" "$COLOR" $merge_flags "$spec")
+  pre_history=($OP $DATE $COLOR $merge_flags)
 
-  post_history=("$SHOW" "$STAT")
+  post_history=($SHOW $STAT $spec)
 
   if [[ ${#files[@]} -gt 0 ]]
   then
@@ -412,7 +425,7 @@ function git_options {
 # DIFF          = yes if showing diff instead of logs
 # COLOR         = yes to color output
 # VERBOSE       = yes/no to enable verbosity
-
+# CUSTOM        = a custom commit or range specification
 function vc_git_common_args {
   VC_ARGS=()
 
@@ -420,6 +433,7 @@ function vc_git_common_args {
   STAT=""
   DIFF="no"
   TOOL="no"
+  CUSTOM=""
 
   while [[ $# -gt 0 ]]
   do
@@ -482,6 +496,13 @@ function vc_git_common_args {
     if [[ "$1" == "-graph" ]]
     then
       SHOW="--graph"
+      shift
+      continue
+    fi
+
+    if [[ -z $CUSTOM ]]
+    then
+      CUSTOM=$1
       shift
       continue
     fi
