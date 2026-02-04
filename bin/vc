@@ -51,7 +51,25 @@ VERBOSE='no'
 # vc.sh, required and overrides
 #
 
-test -f vc.sh && source vc.sh
+vc_config="vc.sh"
+dir=$PWD
+
+while [[ ! -e "${dir}/$vc_config" ]]
+do
+  if [[ "$dir" == "$HOME" ]]
+  then
+    break
+  fi
+
+  if [[ -d "${dir}/.git" ]]
+  then
+    break
+  fi
+
+  dir=`dirname $dir`
+done
+
+test -e "${dir}/${vc_config}" && source "${dir}/${vc_config}"
 
 DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
 
