@@ -798,7 +798,7 @@ case $1 in
       abort "end" "get name of branch from arguments" "NA"
     fi
 
-    if ! git branch | grep "${FEATURE}/${name}"
+    if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
     then
       abort "end" "feature branch ${name} not found" "NA"
     fi
@@ -955,18 +955,18 @@ case $1 in
       color="--color"
     fi
 
-    git branch -vv $color | grep -v -E '^$'
+    try git "status:branches" "running git banch" branch -vv $color | grep -v -E '^$'
 
-    git status $color | grep -v -E '^$'
+    try git "status:status" "running git status" status | grep -v -E '^$'
 
     echo "[untracked]"
-    git ls-files -o --exclude-standard
+    try git "status:untracked" "executing ls-files to show untracked" ls-files --others --exclude-standard
 
     echo "[staged]"
-    git diff --staged --stat $color | grep -v -E '^$'
+    try git "status:staged" "diff staged" diff --staged --stat $color | grep -v -E '^$'
 
     echo "[changes]"
-    git diff --stat $color | grep -v -E '^$'
+    try git "status:changes" "basic diff" diff --stat $color | grep -v -E '^$'
     ;;
   "verify")
     exec git log --show-signature $@
