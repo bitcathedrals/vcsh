@@ -51,10 +51,10 @@ VERBOSE='no'
 # vc.sh, required and overrides
 #
 
-vc_config="vc.sh"
+VC_CONFIG="vc.sh"
 dir=$PWD
 
-while [[ ! -e "${dir}/$vc_config" ]]
+while [[ ! -e "${dir}/$VC_CONFIG" ]]
 do
   if [[ "$dir" == "$HOME" ]]
   then
@@ -69,7 +69,7 @@ do
   dir=`dirname $dir`
 done
 
-test -e "${dir}/${vc_config}" && source "${dir}/${vc_config}"
+test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
 
 DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
 
