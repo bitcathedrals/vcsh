@@ -200,6 +200,49 @@ function try {
   return $exit_status
 }
 
+#
+# try_no_blanks - try to execute a command with verbosity 
+#                 and error calls baked in. also filters
+#                 out blank lines.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
+function try_no_blanks {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  verbosity "$task" "$describe" "$command" $@
+
+  if [[ "$DRY" = 'yes' ]]
+  then
+    echo >/dev/stderr "vc noexec: $command $*" 
+    return 0
+  fi
+
+  exit_status=""
+
+  $command $@ | grep -v -E '^$'
+  
+  exit_status=$?
+
+  if [[ $exit_status -gt 0 ]]
+  then
+    error "$task" "$command $status" "$describe" $@
+  fi
+
+  return $exit_status
+}
 
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
@@ -218,43 +261,64 @@ function root_to_branch {
 }
 
 function create_tag {
-  TYPE=$1
+  type=$1
+  message=$2
 
-  FEATURE=$2
-
-  if [[ -z $FEATURE ]]
+  if [[ $# -gt 0 ]]
   then
-    echo >/dev/stderr "tag-${TYPE} requires the feature as the first argument"
-  fi
-
-  MESSAGE=$3
-
-  if [[ -z $MESSAGE ]]
-  then
-    echo >/dev/stderr "tag-${TYPE} requires description as the second argument"
-  fi
-
-  if git tag | grep "${TYPE}-${USER}/${FEATURE}"
-  then
-    COUNT=$(git tag | grep "${TYPE}-${USER}/${FEATURE}" | wc -l)
-
-    COUNT=$((COUNT + 1))
-
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(${COUNT})"
+    type=$1
+    shift
   else
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(1)"
+    abort "create_tag" "no argument given for type" "NA"
   fi
 
-  echo >/dev/stderr "tag name is: $TAG_NAME"
+
+  if [[ $# -gt 0 ]]
+  then
+    feature=$1
+    shift
+  else
+    abort "create_tag" "no argument given for feature" "NA"
+  fi
+
+  if [[ $# -gt 0 ]]
+  then
+    message=$1
+    shift
+  else
+    abort "create_tag" "no argument given for message" "NA"
+  fi
+
+  case $type in
+    "beta")
+      if git tag | grep "${type}: ${USER}/${feature}"
+      then
+        count=$(git tag | grep "${type}-${USER}/${feature}" | wc -l)
+        count=$((count + 1))
+
+        TAG="${type}-${USER}/${feature}-${count} ${message}"
+      else
+        TAG="${type}-${USER}/${feature}-1 ${message}"
+      fi
+    ;;
+    "release")
+      # feature is the version in this case 
+      TAG="release-${feature} ${message}"
+    ;;
+    *)
+      abort "create_tag" "type: $type is not recognized." "NA"
+    ;;
+  esac
+
+  echo >/dev/stderr "tag is: $TAG with $message"
 
   read -p "create tag? [y/n]: " choice
 
   if [[ $choice == "y" ]]
   then
-    git tag -a $TAG_NAME -m $MESSAGE
+    git tag -a -m $TAG
   else
-    echo >/dev/stderr "tag-alpha: aborting!"
-    exit 1
+    abort "create_tag" "aborted creating tag: $TAG"
   fi
 }
 
@@ -281,10 +345,10 @@ function create_tag {
 
 # 
 
-# pre_history[@]   = this array contains the options that follow
+# pre_options[@]   = this array contains the options that follow
 #                    a git command, but before inserted options
-#                    and post_history
-# post_history[@]  = this array contains the options that are
+#                    and post_options
+# post_options[@]  = this array contains the options that are
 #                    at the end of a git command.
 function git_options {
   merges='false'
@@ -408,22 +472,22 @@ function git_options {
     OP="difftool"
   fi
 
-  pre_history=($OP $DATE $COLOR $merge_flags)
+  pre_options=($OP $DATE $COLOR $merge_flags)
 
-  post_history=($SHOW $STAT $spec)
+  post_options=($SHOW $STAT $spec)
 
   if [[ ${#files[@]} -gt 0 ]]
   then
-    post_history+=(${post_history[@]} "--follow" "--" ${files[@]})
+    post_options+=(${post_options[@]} "--follow" "--" ${files[@]})
   fi
 
-  verbosity "git_options" "generated options" ${pre_history[@]} ${post_history[@]}
+  verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
 
   return 0
 }
 
 #
-# vc_git_common_args - process CLI arguments for git_options
+# git_arguments - process CLI arguments for git_options
 #
 
 # -compact      = show oneline compact form
@@ -444,7 +508,7 @@ function git_options {
 # COLOR         = yes to color output
 # VERBOSE       = yes/no to enable verbosity
 # CUSTOM        = a custom commit or range specification
-function vc_git_common_args {
+function git_arguments {
   VC_ARGS=()
 
   SHOW=""
@@ -563,7 +627,7 @@ function semantic_commits {
     ;;
   esac
 
-  vc_git_common_args -compact -no-color
+  git_arguments -compact -no-color
 
   if [[ -n $spec ]]
   then
@@ -572,7 +636,7 @@ function semantic_commits {
     git_options :no-merges
   fi
 
-  try "git" "semantic_commits" log ${pre_history[@]} ${post_history[@]} | read -r REPORT
+  try "git" "semantic_commits" log ${pre_options[@]} ${post_options[@]} | read -r REPORT
 }
 
 function get_semantics {
@@ -639,15 +703,15 @@ MESSAGE
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
-    echo >/dev/stderr >/dev/stderr "vcsh: replaced .zshrc with upstream version"
+    verbosity "tools-zshrc" "replaced .zshrc with current version"
     ;;
   "tools-custom")
     cp "${VCSH_SHELL}/zshrc.custom" $HOME/.zshrc.custom
-    echo >/dev/stderr "vcsh: replaced .zshrc.custom with upstream version"
+    verbosity "tools-custom" "replaced .zshrc.custom with current version"
     ;;
   "tools-prompt")
     cp "${VCSH_SHELL}/zshrc.prompt" $HOME/.zshrc.prompt
-    echo >/dev/stderr "vcsh: installed prompt with pyenv and github support"
+    verbosity "tools-prompt" "replaced prompt with current version"
     ;;
 
   "tools-brew-init")
@@ -702,8 +766,7 @@ case $1 in
 
     if [[ -z "$1" || -z "$2" || -z "$3" ]]
     then
-      echo >/dev/stderr "vcsh: add submodule command requires <repo> <branch> <local>"
-      exit 1
+      abort "modadd" "submodule command requires <repo> <branch> <local>" "NA"
     fi
 
     if git submodule add -b $2 $1 $3
@@ -883,20 +946,11 @@ case $1 in
   "beta")
     shift
 
-    FEATURE=$1
+    message=$1
 
-    if [[ -z $FEATURE ]]
+    if [[ -z $message ]]
     then
-      echo >/dev/stderr "vcsh: tag-beta - a feature argument (1) is missing"
-      exit 1
-    fi
-
-    MESSAGE=$2
-
-    if [[ -z $MESSAGE ]]
-    then
-      echo >/dev/stderr "vcsh tag-beta - a messsage argument (2) is missing."
-      exit 1
+      abort "tag-beta - message argument is missing."
     fi
 
     create_tag "beta" "$FEATURE" "$MESSAGE"
@@ -973,26 +1027,58 @@ case $1 in
       color="--color"
     fi
 
-    try git "status:branches" "running git banch" branch -vv $color | grep -v -E '^$'
+    try_no_blanks git "status:branches" "running git banch" branch -vv $color
 
-    try git "status:status" "running git status" status | grep -v -E '^$'
+    try_no_blanks git "status:status" "running git status" status
 
     echo "[untracked]"
     try git "status:untracked" "executing ls-files to show untracked" ls-files --others --exclude-standard
 
     echo "[staged]"
-    try git "status:staged" "diff staged" diff --staged --stat $color | grep -v -E '^$'
+    try_no_blanks git "status:staged" "diff staged" diff --staged --stat $color
 
     echo "[changes]"
-    try git "status:changes" "basic diff" diff --stat $color | grep -v -E '^$'
+    try_no_blanks git "status:changes" "basic diff" diff --stat $color
     ;;
   "verify")
     exec git log --show-signature $@
     ;;
+  "show")
+      shift
+
+      if [[ $# -lt 1 ]]
+      then
+        git_options
+        try "git" "show" "attempting to get last commit (no arg)" "show"
+        exit $?
+      fi
+
+      if [[ $1 == "-l" ]]
+      then 
+        git_arguments -compact -no-color
+        git_options
+
+        try git "show" "a numbered list list of commits" ${pre_options[@]} ${post_options[@]} | nl
+        exit $?
+      fi
+
+      if [[ $1 == "-n" ]]
+      then
+        shift
+        number=$1
+
+        verbosity "show" "commit number is: ${number}"
+
+        git_arguments -compact -no-color
+        git_options
+
+        commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${number}p" | tr -s ' ' | cut -d ' ' -f 1`
+
+        verbosity "show" "found commit id" $commit
+      fi
+     ;;
   "fetch")
-    git fetch
-    git fetch origin ${MAIN}
-    git fetch origin ${INTEGRATION}
+    try_no_blanks "git" "git fetch" fetch
     ;;
   "pull")
     git pull --no-ff
@@ -1003,11 +1089,11 @@ case $1 in
   "pending")
     shift
 
-    vc_git_common_args $@
+    git_arguments $@
 
     git_options :merge
 
-    try "git" "pending" 'show work not in root' ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try_no_blanks "git" "pending" "show work not in root" ${pre_options[@]} ${post_options[@]}
     exit $?
     ;;
   "list")
@@ -1016,7 +1102,7 @@ case $1 in
     case $1 in
       "merges")
         git_options ":only-merges" $@
-        try "git" "merges" "log of merges only" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+        try_no_blanks "git" "merges" "log of merges only" ${pre_options[@]} ${post_options[@]}
       ;;
       "releases")
         git tag | grep release | sort -V | grep -v -E '^$'
@@ -1029,38 +1115,38 @@ case $1 in
         git branch | grep "${FEATURE}"
       ;;
       *)
-
+        abort "list" "list type argument missing" "NA"
       ;;
     esac
     ;;
   "history")
     shift
 
-    vc_git_common_args $@
+    git_arguments $@
 
     git_options
 
-    try "git" "history" "show commits on current branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try_no_blanks "git" "history" "show commits on current branch" ${pre_options[@]} ${post_options[@]}
     ;;
   "ahead")
     shift
 
-    vc_git_common_args $@
+    git_arguments $@
 
     git_options $@
 
-    try "git" "ahead" 'show commits in branch, not trunk' ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
     ;;
   "behind")
     shift
 
-    vc_git_common_args $@
+    git_arguments $@
 
     root_to_branch norelease
 
     git_options
 
-    try "git" "behind" "show commits on trunk not in branch" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try_no_blanks "git" "behind" "show commits on trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
   "upload")
     git push origin "${MAIN}:${MAIN}"
@@ -1074,17 +1160,18 @@ case $1 in
     git fetch origin ${MAIN}
     git fetch origin ${INTEGRATION}
 
-    vc_git_common_args $@
+    git_arguments $@
     git_options :upstream
 
-    try "git" "down" "fetch and show commits upstream not local" ${pre_history[@]} ${post_history[@]} | grep -v -E '^$'
+    try_no_blanks "git" "down" "fetch and show commits upstream not local" ${pre_options[@]} ${post_options[@]}
     ;;
-  "sync")
+  "merge")
     root_to_branch norelease
 
-    echo ">>>syncing from: ${root}->${branch}"
+    verbosity "merging: ${branch} into ${root}"
 
-    git merge --no-ff --stat ${root}
+    try "git" "checkout the root: ${root} for merge" checkout ${root}
+    try "git" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
 
   #
@@ -1185,11 +1272,11 @@ vc
 
 [tools commands]
 
-tools-zshrc   = install hombrew, pyenv, and pyenv switching commands into .zshrc
-tools-custom  = install zshrc.custom
-tools-prompt  = install prompt support with pyeenv, git, and project in the prompt
+tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
+tools-custom        = install zshrc.custom
+tools-prompt        = install prompt support with pyeenv, git, and project in the prompt
 
-brew-upgrade  = upgrade brew packages
+brew-upgrade        = upgrade brew packages
 
 tools-brew-init     = initialize the /opt/homebrew homebrew repository
 tools-brew-upgrade  = upgrade the /opt/homebrew repository
@@ -1212,19 +1299,20 @@ modall              = update all submodules
 
 [version control]
 
-begin    <name> = start feature branch <name>
-end      <name> = close feature branch <name>
+track <1> <2> = set upstream tracking 1=remote 2=branch
 
-bug      <name> = start a bug branch
-close    <name> = finish a bugfix merging into develop
+[workflow]
 
-goto     <name> = switch to feature or bugfix branch, searches branches
+begin <name>  = start feature branch
+end <name>    = close feature branch <name>
 
-track <1> <2>  = set upstream tracking 1=remote 2=branch
+bug           = start a bug branch
+close         = finish a bugfix merging into develop
 
-beta       = <feat> <msg> = create a beta tag with the devel branch feature and message
+goto          = switch to feature or bugfix branch, searches branches
 
-info     = show branches, tracking, and status
+beta <msg>    = create a beta tag with the message
+
 verify   = show log with signatures for verification
 status   = git state, submodule state, diffstat for changes in tree
 fetch    = fetch main, develop, and current branch
