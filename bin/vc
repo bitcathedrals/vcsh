@@ -885,7 +885,7 @@ case $1 in
   "begin")
     shift
 
-    vc_options
+    vc_options $@
 
     name=$1
 
@@ -906,7 +906,7 @@ case $1 in
   "end")
     shift
 
-    vc_options
+    vc_options $@
 
     name=$1
 
@@ -1162,6 +1162,8 @@ case $1 in
   "history")
     shift
 
+    vc_options $@
+
     git_arguments $@
 
     git_options
@@ -1206,7 +1208,9 @@ case $1 in
     try_no_blanks "git" "down" "fetch and show commits upstream not local" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
-    vc_options
+    shift
+
+    vc_options $@
 
     root_to_branch norelease
 
