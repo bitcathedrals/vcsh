@@ -1060,6 +1060,10 @@ case $1 in
     print_report
     ;;
   "status")
+    shift
+
+    vc_options $@
+
     color=""
 
     if [[ $1 == "-color" || "$COLOR" == "yes" ]]
