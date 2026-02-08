@@ -46,6 +46,7 @@ DATE_ARG="--date="
 DATE_DEFAULT="relative"
 
 VERBOSE='no'
+DRY='no'
 
 #
 # vc.sh, required and overrides
@@ -180,17 +181,16 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
-  if [[ "$DRY" = 'yes' ]]
-  then
-    echo >/dev/stderr "vc noexec: $command $*" 
-    return 0
-  fi
-
   exit_status=""
 
-  $command $@
-  
-  exit_status=$?
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $*"
+    exit_status=0
+  else
+    $command $@ | grep -v -E '^$'
+    exit_status=$?
+  fi
 
   if [[ $exit_status -gt 0 ]]
   then
@@ -224,17 +224,16 @@ function try_no_blanks {
 
   verbosity "$task" "$describe" "$command" $@
 
-  if [[ "$DRY" = 'yes' ]]
-  then
-    echo >/dev/stderr "vc noexec: $command $*" 
-    return 0
-  fi
-
   exit_status=""
 
-  $command $@ | grep -v -E '^$'
-  
-  exit_status=$?
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $* | grep -v -E \'^$\'"
+    exit_status=0
+  else
+    $command $@ | grep -v -E '^$'
+    exit_status=$?
+  fi
 
   if [[ $exit_status -gt 0 ]]
   then
@@ -320,6 +319,39 @@ function create_tag {
   else
     abort "create_tag" "aborted creating tag: $TAG"
   fi
+}
+
+#
+# vc_options
+#
+
+# -v        : verbose
+# -d        : dry run
+
+function vc_options {
+  args=()
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-d" ]]
+    then
+      DRY='yes'
+      shift
+      continue
+    fi
+
+    args+=("$1")
+    shift
+  done
+
+  set -- "${args[@]}"
 }
 
 #
@@ -852,31 +884,35 @@ case $1 in
 
   "begin")
     shift
+
+    vc_options
+
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh begin: requires a name for a new feature branch as an argument"
-      exit 1
+      abort "begin" "name required for a new feature branch" "NA"
     fi
 
-    git checkout -b "${FEATURE}/${name}"
+    try git "begin" "checkout the feature branch" checkout -b "${FEATURE}/${name}"
 
     if [[ $? -ne 0 ]]
     then
-      echo >/dev/stderr "vcsh begin: error creating feature branch $name"
-      exit 1
+      abort "begin" "error creating feature branch $name" "NA"
     fi
 
-    echo >/dev/stderr "vcsh begin: on new feature branch \"$name\""
+    verbosity "begin" "new feature branch \"$name\""
    ;;
   "end")
     shift
+
+    vc_options
+
     name=$1
 
     if [[ -z $name ]]
     then
-      abort "end" "get name of branch from arguments" "NA"
+      abort "end" "get name of branch" "NA"
     fi
 
     if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
@@ -884,9 +920,13 @@ case $1 in
       abort "end" "feature branch ${name} not found" "NA"
     fi
 
-    if ! git checkout "${INTEGRATION}"
+    try git "end" "checkout trunk" checkout "${INTEGRATION}"
+
+    checkout_status=$?
+
+    if $[[ $checkout_status -gt 0 ]]
     then
-      abort "end" "error swithing to ${INTEGRATION} branch for merging ${name}" "NA"
+      abort "end" "error switching to ${INTEGRATION} branch for merging ${name}" $checkout_status
     fi
     ;;
   "bug")
@@ -1148,7 +1188,7 @@ case $1 in
 
     try_no_blanks "git" "behind" "show commits on trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
-  "upload")
+  "up")
     git push origin "${MAIN}:${MAIN}"
     git push origin "${INTEGRATION}:${INTEGRATION}"
 
@@ -1166,6 +1206,8 @@ case $1 in
     try_no_blanks "git" "down" "fetch and show commits upstream not local" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
+    vc_options
+
     root_to_branch norelease
 
     verbosity "merging: ${branch} into ${root}"
@@ -1177,6 +1219,7 @@ case $1 in
   #
   # release environment
   #
+
   "check")
     verbosity "check" "fetching new commits from remote"
     git fetch origin develop
