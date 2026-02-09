@@ -1142,6 +1142,8 @@ case $1 in
   "pending")
     shift
 
+    vc_options $@
+
     git_arguments $@
 
     git_options :merge
@@ -1151,6 +1153,8 @@ case $1 in
     ;;
   "list")
     shift
+
+    vc_options $@
 
     case $1 in
       "merges")
@@ -1186,6 +1190,8 @@ case $1 in
   "ahead")
     shift
 
+    vc_options $@
+
     git_arguments $@
 
     git_options $@
@@ -1194,6 +1200,8 @@ case $1 in
     ;;
   "behind")
     shift
+
+    vc_options $@
 
     git_arguments $@
 
