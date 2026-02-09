@@ -991,7 +991,7 @@ case $1 in
 
     if [[ -z $message ]]
     then
-      abort "tag-beta - message argument is missing."
+      abort "beta - message argument is missing."
     fi
 
     create_tag "beta" "$FEATURE" "$MESSAGE"
@@ -1091,6 +1091,8 @@ case $1 in
   "show")
       shift
 
+      vc_options $@
+
       if [[ $# -lt 1 ]]
       then
         git_options
@@ -1128,8 +1130,14 @@ case $1 in
   "pull")
     git pull --no-ff
     ;;
-  "staged")
-    git diff --cached
+  "patch")
+    shift
+
+    vc_options $@
+
+    git_options
+
+    try git "patch" "diff --cached generate patch" diff --cached
     ;;
   "pending")
     shift
@@ -1372,7 +1380,7 @@ pull     = pull current branch no ff
 
 [show log/diff/reports]
 
-staged     = show staged changes
+patch      = generate a unified diff
 
 list       = <merges|releases|features>
 
@@ -1383,8 +1391,8 @@ behind     = show log of commit in parent but not branch
 
 report     = [-release] = generate a report of changes since integration
 
-up         = push up changes to remote
-down       = pull down and show changes
+up         = push up trunk changes to remote
+down       = pull down trunk and local changes
 
 sync       = merge from the root branch commits not in this branch no ff
 
