@@ -955,12 +955,14 @@ case $1 in
     ;;
   "goto")
     shift
+    
+    vc_options $@
+
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh goto: requires the name of the bug or feature branch as an argument"
-      exit 1
+      abort "goto" "name of the bug or feature branch required" "NA"
     fi
 
     if [[ "$name" == "$INTEGRATON" || "$name" == "$MAIN" ]]
@@ -970,18 +972,17 @@ case $1 in
 
     if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
-      echo "vc checking out feature: $name" >/dev/stderr
+      verbosity "checking out feature: $name"
       exec git checkout "feature/${name}"
     fi
 
     if git branch bugfix | grep "$name" >/dev/null 2>&1
     then
-      echo "vc checking out bugfix: $name" >/dev/stderr
+      verbosity "checking out bugfix: $name"
       exec git checkout "bugfix/${name}"
     fi
 
-    echo "vcsh goto: \"$name\" not found in features or bugfixes"
-    exit 1
+    abort "\"$name\" not found in features or bugfixes"
     ;;    
   "beta")
     shift
