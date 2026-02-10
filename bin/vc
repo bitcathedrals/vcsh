@@ -1065,12 +1065,7 @@ case $1 in
 
     vc_options $@
 
-    color=""
-
-    if [[ $1 == "-color" || "$COLOR" == "yes" ]]
-    then
-      color="--color"
-    fi
+    git_options
 
     try_no_blanks git "status:branches" "running git banch" branch -vv $color
 
@@ -1241,8 +1236,58 @@ case $1 in
     try "git" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
 
+  "rb")
+    shift
+
+    vc_options $@
+
+    git_arguments -diff $@
+
+    rollback_arguments=()
+
+    case $1 in
+      "idx")
+        # rollback index from HEAD, unstaging
+        # no files are damaged
+        rollback_arguments=("restore" "--staged")
+
+       try_no_blanks git "rb idx" "diff staged" ${pre_options[@]} --staged ${post_options}
+
+       prompt="staged changes"
+
+      "wrk")
+        # rollback workarea from discarding any
+        # unstaged changes
+        rollback_arguments=("restore") 
+
+       try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
+
+       prompt="local changes"
+
+      "mrg")
+        # rollback merge
+        rollback_arguments=("merge" "--abort")
+
+       try_no_blanks git "rb mrg" "diff staged" ${pre_options[@]} --staged ${post_options}
+
+       prompt="merge"
+      *)
+        abort "rb" "unknown rollback target" "NA" $1
+      ;;
+    esac
+
+    read -p "vc: rollback $prompt [y/n]? " rollback
+
+    if [[ "$rollback" != "y" ]]
+    then
+      abort "rb" "aborting with non \"y\" response" "NA"
+    fi
+
+    try "git" "rb" "rollback work area from the index" @rollback_arguments
+  ;;
+
   #
-  # release environment
+  # release commands
   #
 
   "check")
