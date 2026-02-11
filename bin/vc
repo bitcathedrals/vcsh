@@ -222,6 +222,14 @@ function try_no_blanks {
   describe=$1
   shift
 
+  ignore='false'
+
+  if echo "$command" | grep -E '^@' >/dev/null 2>&1
+  then
+    ignore='true'
+    command=`echo $command | sed -e 's,^@,,'`
+  fi
+
   verbosity "$task" "$describe" "$command" $@
 
   exit_status=""
@@ -233,6 +241,11 @@ function try_no_blanks {
   else
     $command $@ | grep -v -E '^$'
     exit_status=$?
+  fi
+
+  if [[ "$ignore" == "true" ]]
+  then
+    return $exit_status
   fi
 
   if [[ $exit_status -gt 0 ]]
@@ -250,12 +263,12 @@ function root_to_branch {
   then
     if [[ $1 == "norelease" ]]
     then
-      root="main"
+      root="${MAIN}"
     else
       root=$(git tag | grep release | sort -V | tail -n 1)
     fi
   else
-    root='develop'
+    root="${INTEGRATION}"
   fi
 }
 
@@ -460,7 +473,7 @@ function git_options {
       then
         spec="HEAD..@{upstream}"
       else
-        root_to_branch
+        root_to_branch norelease
         spec="${root}..${branch}"
       fi
     ;;
@@ -469,7 +482,7 @@ function git_options {
       then
         spec="HEAD...@{upstream}"
       else
-        root_to_branch
+        root_to_branch norelease
         spec="${root}...${branch}"
       fi
     ;;
@@ -1065,18 +1078,18 @@ case $1 in
 
     vc_options $@
 
-#    try_no_blanks git "status:branches" "git banch" branch -vv $color
+    try_no_blanks git "status:branches" "git banch" branch -vv $color
 
     try_no_blanks git "status" "git status" status
 
     echo "[untracked]"
-    try_no_blanks "git" "status" "ls-files" ls-files --others --exclude-standard
+    try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard
 
     echo "[staged]"
-    try_no_blanks git "status" "diff staged" diff --staged --stat $color
+    try_no_blanks "@git" "status" "diff staged" diff --staged --stat $color
 
     echo "[changes]"
-    try_no_blanks git "status" "changes diffstat" diff --stat $color
+    try_no_blanks "@git" "status" "changes diffstat" diff --stat $color
     ;;
   "verify")
     exec git log --show-signature $@
