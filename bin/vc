@@ -30,6 +30,219 @@ case $VCSH_SYSTEM in
   ;;
 esac
 
+#
+# default values
+#
+
+MAIN="main"
+INTEGRATION="develop"
+FEATURE="feature"
+BUGFIX="bugfix"
+RELEASE="release"
+TAG="release"
+VERSION=""
+
+DATE_ARG="--date="
+DATE_DEFAULT="relative"
+
+VERBOSE='no'
+DRY='no'
+
+#
+# vc.sh, required and overrides
+#
+
+VC_CONFIG="vc.sh"
+dir=$PWD
+
+while [[ ! -e "${dir}/$VC_CONFIG" ]]
+do
+  if [[ "$dir" == "$HOME" ]]
+  then
+    break
+  fi
+
+  if [[ -d "${dir}/.git" ]]
+  then
+    break
+  fi
+
+  dir=`dirname $dir`
+done
+
+test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
+
+DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
+
+#
+# verbosity - print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function verbosity {
+  if [[ $VERBOSE == 'no' ]]
+  then
+    return
+  fi
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  info=""
+
+  if [[ $# -gt 0 ]]
+  then
+    info="> $*"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] $describe $info"
+}
+
+#
+# error - produce a formatted error message but do
+#         not exit
+#
+
+# task        = the task that failed
+# status      = the exit status of the command that failed
+# description = description of the task that failed
+
+function error {
+  task=$1
+  shift
+
+  status=$1
+  shift
+
+  describe=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] error! (${status}) ${describe} > $*"
+}
+
+#
+# abort - print error information and exit 1
+#
+
+# task          = the task that failed
+# description   = description of what failed
+# status        = the exit status of the command that failed
+
+function abort {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  exit_code=""
+
+  if [[ $# -gt 0 ]]
+  then
+    exit_code=$1
+  fi
+  shift
+
+  if [[ -n $exit_code ]]
+  then
+    exit_code="(${exit_code})"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] abort! $exit_code $describe > \"$*\""
+  exit 1
+}
+
+#
+# try - try to execute a command with verbosity and error calls
+#       baked in.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
+function try {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  verbosity "$task" "$describe" "$command" $@
+
+  exit_status=""
+
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $*"
+    exit_status=0
+  else
+    $command $@ | grep -v -E '^$'
+    exit_status=$?
+  fi
+
+  if [[ $exit_status -gt 0 ]]
+  then
+    error "$task" "$command $status" "$describe" $@
+  fi
+
+  return $exit_status
+}
+
+#
+# try_no_blanks - try to execute a command with verbosity 
+#                 and error calls baked in. also filters
+#                 out blank lines.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
+function try_no_blanks {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  verbosity "$task" "$describe" "$command" $@
+
+  exit_status=""
+
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $* | grep -v -E \'^$\'"
+    exit_status=0
+  else
+    $command $@ | grep -v -E '^$'
+    exit_status=$?
+  fi
+
+  if [[ $exit_status -gt 0 ]]
+  then
+    error "$task" "$command $status" "$describe" $@
+  fi
+
+  return $exit_status
+}
+
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
 
@@ -47,54 +260,423 @@ function root_to_branch {
 }
 
 function create_tag {
-  TYPE=$1
+  type=$1
+  message=$2
 
-  FEATURE=$2
-
-  if [[ -z $FEATURE ]]
+  if [[ $# -gt 0 ]]
   then
-    echo "tag-${TYPE} requires the feature as the first argument"
-  fi
-
-  MESSAGE=$3
-
-  if [[ -z $MESSAGE ]]
-  then
-    echo "tag-${TYPE} requires description as the second argument"
-  fi
-
-  if git tag | grep "${TYPE}-${USER}/${FEATURE}"
-  then
-    COUNT=$(git tag | grep "${TYPE}-${USER}/${FEATURE}" | wc -l)
-
-    COUNT=$((COUNT + 1))
-
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(${COUNT})"
+    type=$1
+    shift
   else
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(1)"
+    abort "create_tag" "no argument given for type" "NA"
   fi
 
-  echo "tag name is: $TAG_NAME"
+
+  if [[ $# -gt 0 ]]
+  then
+    feature=$1
+    shift
+  else
+    abort "create_tag" "no argument given for feature" "NA"
+  fi
+
+  if [[ $# -gt 0 ]]
+  then
+    message=$1
+    shift
+  else
+    abort "create_tag" "no argument given for message" "NA"
+  fi
+
+  case $type in
+    "beta")
+      if git tag | grep "${type}: ${USER}/${feature}"
+      then
+        count=$(git tag | grep "${type}-${USER}/${feature}" | wc -l)
+        count=$((count + 1))
+
+        TAG="${type}-${USER}/${feature}-${count} ${message}"
+      else
+        TAG="${type}-${USER}/${feature}-1 ${message}"
+      fi
+    ;;
+    "release")
+      # feature is the version in this case 
+      TAG="release-${feature} ${message}"
+    ;;
+    *)
+      abort "create_tag" "type: $type is not recognized." "NA"
+    ;;
+  esac
+
+  echo >/dev/stderr "tag is: $TAG with $message"
 
   read -p "create tag? [y/n]: " choice
 
   if [[ $choice == "y" ]]
   then
-    git tag -a $TAG_NAME -m $MESSAGE
+    git tag -a -m $TAG
   else
-    echo "tag-alpha: aborting!"
-    exit 1
+    abort "create_tag" "aborted creating tag: $TAG"
   fi
 }
 
-function get_last_commit_type {
-  if [[ $1 == "release" ]]
+#
+# vc_options
+#
+
+# -v        : verbose
+# -d        : dry run
+
+function vc_options {
+  args=()
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-d" ]]
+    then
+      DRY='yes'
+      shift
+      continue
+    fi
+
+    args+=("$1")
+    shift
+  done
+
+  set -- "${args[@]}"
+}
+
+#
+# git_options
+#
+
+# :custom          = <branch>...?<trunk> or <trunk>...?<branch>
+# :upstream        = execute against upstream branch
+# :no-merges       = do not show merges
+# :only-merges     = only show merges
+# :merge           = use ... spec to show changes not in <trunk> and <branch>
+
+# @                = files to operate on, only a single file is legal git.
+
+# DATE             = date format
+# COLOR            = yes/no show in color
+# SHOW             = flags for output type and format
+# VC_ARGS          = remaining arguments from common option processing
+
+#
+# return STATUS    = 0 if succesful, 1 if there was an error
+#
+
+# 
+
+# pre_options[@]   = this array contains the options that follow
+#                    a git command, but before inserted options
+#                    and post_options
+# post_options[@]  = this array contains the options that are
+#                    at the end of a git command.
+function git_options {
+  merges='false'
+  upstream="false"
+
+  spec=""
+
+  type="changes"
+
+  if [[ -n $CUSTOM ]]
   then
-    last=`git tag | grep release | sort -V | tail -n 1`
-    git log --oneline "${last}..develop" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
+    type="custom"
+  fi
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == ":custom" ]]
+    then
+      type="custom"
+      shift
+
+      spec=$1
+      shift
+
+      if [[ -z $spec ]]
+      then
+        abort "git_options" ":custom spec was missing"
+      fi
+
+      continue
+    fi
+
+    if [[ "$1" == ":upstream" ]]
+    then
+      upstream='true'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":no-merges" ]]
+    then
+      merge_flags=("--first-parent")
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":only-merges" ]]
+    then
+      merging='true'
+      merge_flags=("--merges")
+      shift
+      continue
+    fi
+
+    if [[ "$1" == ":merge" ]]
+    then
+      merging='true'
+      shift
+      continue
+    fi
+  done
+
+  if [[ ${#VC_ARGS[@]} -gt 0 ]]
+  then
+    for f in ${VC_ARGS[@]}
+    do
+      if [[ ! -f $f ]]
+      then
+        abort "git_options" "processing unrecognized arguments" "NA" "file \"$f\" does not exist"
+      fi
+    done
+  fi
+
+  case $type in
+    "changes")
+      if [[ "$upstream" == 'true' ]]
+      then
+        spec="HEAD..@{upstream}"
+      else
+        root_to_branch
+        spec="${root}..${branch}"
+      fi
+    ;;
+    "merging")
+      if [[ "$upstream" == 'true' ]]
+      then
+        spec="HEAD...@{upstream}"
+      else
+        root_to_branch
+        spec="${root}...${branch}"
+      fi
+    ;;
+    "custom")
+      spec=$CUSTOM
+    ;;
+    *)
+      error "git_options" "NA" "log type not specified"
+      exit 1
+    ;;
+  esac
+
+
+  case $COLOR in
+    "yes")
+      COLOR="--color"
+    ;;
+    "no")
+      COLOR=""
+    ;;
+  esac
+
+  OP="log"
+
+  if [[ "$DIFF" == 'yes' ]]
+  then
+    OP="diff"
+  fi
+
+  if [[ "$TOOL" == 'yes' ]]
+  then
+    OP="difftool"
+  fi
+
+  pre_options=($OP $DATE $COLOR $merge_flags)
+
+  post_options=($SHOW $STAT $spec)
+
+  if [[ ${#files[@]} -gt 0 ]]
+  then
+    post_options+=(${post_options[@]} "--follow" "--" ${files[@]})
+  fi
+
+  verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
+
+  return 0
+}
+
+#
+# git_arguments - process CLI arguments for git_options
+#
+
+# -compact      = show oneline compact form
+# -stat         = show diffstat output
+# -graph        = show graph of commit history
+# -details      = show branch details in log output
+# -decorate     = decorate history with branch information
+# -color        = color history output
+# -no-color     = don't color history output
+# -v            = verbose
+# -diff         = use a diff operation
+# -emacs        = use emacs as a difftool or mergetool
+# return
+
+# SHOW          = git flag to specify output type
+# STAT          = git 
+# DIFF          = yes if showing diff instead of logs
+# COLOR         = yes to color output
+# VERBOSE       = yes/no to enable verbosity
+# CUSTOM        = a custom commit or range specification
+function git_arguments {
+  VC_ARGS=()
+
+  SHOW=""
+  STAT=""
+  DIFF="no"
+  TOOL="no"
+  CUSTOM=""
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-stat" ]]
+    then
+      STAT="--stat"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-color" ]]
+    then
+      COLOR='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-no-color" ]]
+    then
+      COLOR='no'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-diff" ]]
+    then
+      DIFF='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-tool" ]]
+    then
+      TOOL='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-compact" ]]
+    then
+      SHOW="--oneline"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-details" ]]
+    then
+      SHOW="--pretty=fuller"
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-graph" ]]
+    then
+      SHOW="--graph"
+      shift
+      continue
+    fi
+
+    if [[ -z $CUSTOM ]]
+    then
+      CUSTOM=$1
+      shift
+      continue
+    fi
+
+    VC_ARGS+=$1
+    shift
+  done
+}
+
+#
+# semantic_commits
+#
+
+# type   = release|main = return commits by "type" against either release->main or main->integration
+# filter = semantic tag to filter by
+
+function semantic_commits {
+  type="current"
+
+  if [[ -n $1 ]]
+  then
+    type=$1
+  fi
+
+  spec=""
+
+  case $type in
+    "release")
+      last=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
+
+      if [[ -z $last ]]
+      then
+        abort "get_semantic_commits" "no release tags"
+      fi
+
+      spec="${last}..${MAIN}"
+    ;;
+    "integrate")
+      spec="${MAIN}..${INTEGRATION}"
+    ;;
+  esac
+
+  git_arguments -compact -no-color
+
+  if [[ -n $spec ]]
+  then
+    git_options :no-merges :custom "$spec"
   else
-    root_to_branch
-    git log --oneline "${root}..${branch}" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
+    git_options :no-merges
+  fi
+
+  try "git" "semantic_commits" log ${pre_options[@]} ${post_options[@]} | read -r REPORT
+}
+
+function get_semantics {
+  filter=$1;
+
+  if [[ -n $REPORT ]]
+  then
+    echo "$REPORT" | cut -d ' ' -f 2-
   fi
 }
 
@@ -153,15 +735,15 @@ MESSAGE
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
-    echo >/dev/stderr "vcsh: replaced .zshrc with upstream version"
+    verbosity "tools-zshrc" "replaced .zshrc with current version"
     ;;
   "tools-custom")
     cp "${VCSH_SHELL}/zshrc.custom" $HOME/.zshrc.custom
-    echo >/dev/stderr "vcsh: replaced .zshrc.custom with upstream version"
+    verbosity "tools-custom" "replaced .zshrc.custom with current version"
     ;;
   "tools-prompt")
     cp "${VCSH_SHELL}/zshrc.prompt" $HOME/.zshrc.prompt
-    echo >/dev/stderr "vcsh: installed prompt with pyenv and github support"
+    verbosity "tools-prompt" "replaced prompt with current version"
     ;;
 
   "tools-brew-init")
@@ -204,16 +786,6 @@ case $1 in
     $VCSH_ARCH_COMMAND brew install $*
   ;;
 
-  "dependencies-python")
-    DEPS="gnutls openssl readline ncurses gcc autoconf automake libtool pkg-config gettext"
-
-    eval $(${DEP_BREW}bin/brew shellenv)
-
-    OPENSSL=$(${DEP_BREW}bin/brew --prefix openssl)
-
-    $VCSH_ARCH_COMMAND brew install $DEPS
-  ;;
-
   #
   # modules
   #
@@ -226,8 +798,7 @@ case $1 in
 
     if [[ -z "$1" || -z "$2" || -z "$3" ]]
     then
-      echo "vcsh: add submodule command requires <repo> <branch> <local>"
-      exit 1
+      abort "modadd" "submodule command requires <repo> <branch> <local>" "NA"
     fi
 
     if git submodule add -b $2 $1 $3
@@ -313,33 +884,51 @@ case $1 in
 
   "begin")
     shift
+
+    vc_options $@
+
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh begin: requires a name for a new feature branch as an argument"
-      exit 1
+      abort "begin" "name required for a new feature branch" "NA"
     fi
 
-    git flow feature start $name
-    ;;
+    try git "begin" "checkout the feature branch" checkout -b "${FEATURE}/${name}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "begin" "error creating feature branch $name" "NA"
+    fi
+
+    verbosity "begin" "new feature branch \"$name\""
+   ;;
   "end")
     shift
+
+    vc_options $@
+
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh end: requires the name of the feature branch to close"
-      exit 1
+      abort "end" "get name of branch" "NA"
     fi
 
-    git flow feature finish $name
-    ;;
+    if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
+    then
+      abort "end" "feature branch ${name} not found" "NA"
+    fi
 
-  "features")
-    git flow feature
-    ;;
+    try git "end" "checkout trunk" checkout "${INTEGRATION}"
 
+    checkout_status=$?
+
+    if $[[ $checkout_status -gt 0 ]]
+    then
+      abort "end" "error switching to ${INTEGRATION} branch for merging ${name}" $checkout_status
+    fi
+    ;;
   "bug")
     shift
     name=$1
@@ -364,59 +953,45 @@ case $1 in
 
     git flow bugfix finish $name
     ;;
-
-  "bugfixes")
-    git checkout "bugfix/$name"
-    ;;    
-
   "goto")
     shift
+    
+    vc_options $@
+
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh goto: requires the name of the bug or feature branch as an argument"
-      exit 1
+      abort "goto" "name of the bug or feature branch required" "NA"
     fi
 
-    if [[ "$name" == "develop" || "$name" == "main" ]]
+    if [[ "$name" == "$INTEGRATON" || "$name" == "$MAIN" ]]
     then
       exec git checkout "$name"
     fi
 
-    if git flow feature | grep "$name" >/dev/null 2>&1
+    if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
-      echo "vc checking out feature: $name" >/dev/stderr
+      verbosity "checking out feature: $name"
       exec git checkout "feature/${name}"
     fi
 
-    if git flow bugfix | grep "$name" >/dev/null 2>&1
+    if git branch bugfix | grep "$name" >/dev/null 2>&1
     then
-      echo "vc checking out bugfix: $name" >/dev/stderr
+      verbosity "checking out bugfix: $name"
       exec git checkout "bugfix/${name}"
     fi
 
-    echo "vcsh goto: \"$name\" not found in features or bugfixes"
-    exit 1
+    abort "\"$name\" not found in features or bugfixes"
     ;;    
-
   "beta")
     shift
 
-    FEATURE=$1
+    message=$1
 
-    if [[ -z $FEATURE ]]
+    if [[ -z $message ]]
     then
-      echo >/dev/stderr "vcsh: tag-beta - a feature argument (1) is missing"
-      exit 1
-    fi
-
-    MESSAGE=$2
-
-    if [[ -z $MESSAGE ]]
-    then
-      echo >/dev/stderr "vcsh tag-beta - a messsage argument (2) is missing."
-      exit 1
+      abort "beta - message argument is missing."
     fi
 
     create_tag "beta" "$FEATURE" "$MESSAGE"
@@ -442,150 +1017,292 @@ case $1 in
 
     git branch -u $REMOTE/$BRANCH
     ;;
-  "release-report")
-    features=`get_last_commit_type release feat`
-    bugs=`get_last_commit_type release bug`
-    issues=`get_last_commit_type release issue`
-    syncs=`get_last_commit_type release sync`
-    fixes=`get_last_commit_type release fix`
-    refactor=`get_last_commit_type release refactor`
+  "report")
+    shift
+
+    type=""
+
+    while [[ $# -gt 0 ]]
+    do
+      if [[ $1 == "-v" ]]
+      then
+        VERBOSE="yes"
+        shift
+        continue
+      fi
+
+      if [[ $1 == "-main" ]]
+      then
+        type="release"
+        shift
+        continue
+      fi
+
+      if [[ $1 == "-dev" ]]
+      then
+        type="integrate"
+        shift
+        continue
+      fi
+
+      abort "report" "unrecognized option: $1" "NA"
+      shift
+    done
+
+    semantic_commits $type
+
+#    features=`get_semantics feat`
+#    bugs=`get_semantics bug`
+#    issues=`get_semantics issue`
+#    syncs=`get_semantics sync`
+#    fixes=`get_semantics fix`
+#    refactor=`get_semantics refactor`
 
     print_report
     ;;
-  "status-report")
-    features=`get_last_commit_type status feat`
-    bugs=`get_last_commit_type status bug`
-    issues=`get_last_commit_type status issue`
-    syncs=`get_last_commit_type status sync`
-    fixes=`get_last_commit_type status fix`
-    refactor=`get_last_commit_type status refactor`
+  "status")
+    shift
 
-    print_report
-    ;;
-  "info")
-    git branch -vv
+    vc_options $@
 
-    echo "[staged]"
-    git diff --staged | diffstat
+    git_options
 
-    echo "[changes]"
-    git diff | diffstat
+    try_no_blanks git "status:branches" "running git banch" branch -vv $color
+
+    try_no_blanks git "status:status" "running git status" status
 
     echo "[untracked]"
-    git ls-files -o --exclude-standard
+    try git "status:untracked" "executing ls-files to show untracked" ls-files --others --exclude-standard
+
+    echo "[staged]"
+    try_no_blanks git "status:staged" "diff staged" diff --staged --stat $color
+
+    echo "[changes]"
+    try_no_blanks git "status:changes" "basic diff" diff --stat $color
     ;;
   "verify")
     exec git log --show-signature $@
     ;;
-  "since")
-    shift
+  "show")
+      shift
 
-    from=$1
-    shift
+      vc_options $@
 
-    exec git log --since "$from" $@
-    ;;
-  "status")
-    git status
-    git submodule foreach 'git status'
-    git diff --stat
-    ;;
+      if [[ $# -lt 1 ]]
+      then
+        git_options
+        try "git" "show" "attempting to get last commit (no arg)" "show"
+        exit $?
+      fi
+
+      if [[ $1 == "-l" ]]
+      then 
+        git_arguments -compact -no-color
+        git_options
+
+        try git "show" "a numbered list list of commits" ${pre_options[@]} ${post_options[@]} | nl
+        exit $?
+      fi
+
+      if [[ $1 == "-n" ]]
+      then
+        shift
+        number=$1
+
+        verbosity "show" "commit number is: ${number}"
+
+        git_arguments -compact -no-color
+        git_options
+
+        commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${number}p" | tr -s ' ' | cut -d ' ' -f 1`
+
+        verbosity "show" "found commit id" $commit
+      fi
+     ;;
   "fetch")
-    git fetch
-    git fetch origin main
-    git fetch origin develop
+    try_no_blanks "git" "git fetch" fetch
     ;;
   "pull")
     git pull --no-ff
     ;;
-  "staged")
-    git diff --cached
-    ;;
-  "summary")
-    root_to_branch
+  "patch")
+    shift
 
-    echo ">>>showing summary between $root and $branch"
-    git diff "${root}..${branch}" --stat
-    ;;
-  "delta")
-    root_to_branch
+    vc_options $@
 
-    echo ">>>showing delta between $root and $branch"
-    git diff "${root}..${branch}"
-    ;;
-  "preview")
-    root_to_branch
+    git_options
 
-    echo ">>>showing delta of not in either root or branch"
-    git diff "${root}...${branch}"
-    ;;
-  "merges")
-    git log --merges --oneline
-    ;;
-  "releases")
-    git tag | grep release | sort -V
-    ;;
-  "history")
-    echo ">>>showing history"
-    git log --oneline
-    ;;
-  "ahead")
-    root_to_branch
-
-    echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}..${branch}" --oneline
-    ;;
-  "behind")
-    root_to_branch
-
-    echo ">>>showing commits in $root (parent) not $branch"
-    git log "${branch}..${root}" --oneline
+    try git "patch" "diff --cached generate patch" diff -p --no-color | sed -e 's,^--- [ab]/,--- ,' | sed -e 's,^+++ [ab]/,+++ ,'
     ;;
   "pending")
-    root_to_branch
+    shift
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}...${branch}" --oneline
-    ;;
-  "graph")
-    root_to_branch
+    vc_options $@
 
-    echo ">>>showing history between $root and $branch"
-    git log "${root}..${branch}" --oneline --graph --decorate --all
+    git_arguments $@
+
+    git_options :merge
+
+    try_no_blanks "git" "pending" "show work not in root" ${pre_options[@]} ${post_options[@]}
+    exit $?
     ;;
-  "upstream")
+  "list")
+    shift
+
+    vc_options $@
+
+    case $1 in
+      "merges")
+        git_options ":only-merges" $@
+        try_no_blanks "git" "merges" "log of merges only" ${pre_options[@]} ${post_options[@]}
+      ;;
+      "releases")
+        git tag | grep release | sort -V | grep -v -E '^$'
+      ;;
+
+      "bugfixes")
+        git branch | grep "${BUGFIX}"
+      ;;    
+      "features")
+        git branch | grep "${FEATURE}"
+      ;;
+      *)
+        abort "list" "list type argument missing" "NA"
+      ;;
+    esac
+    ;;
+  "history")
+    shift
+
+    vc_options $@
+
+    git_arguments $@
+
+    git_options
+
+    try_no_blanks "git" "history" "show commits on current branch" ${pre_options[@]} ${post_options[@]}
+    ;;
+  "ahead")
+    shift
+
+    vc_options $@
+
+    git_arguments $@
+
+    git_options $@
+
+    try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
+    ;;
+  "behind")
+    shift
+
+    vc_options $@
+
+    git_arguments $@
+
     root_to_branch norelease
 
-    git fetch origin main
-    git fetch origin develop
+    git_options
 
-    echo ">>>showing upstream changes from: ${root}->${branch}"
-    git log --no-merges ${root} ^${branch} --oneline
+    try_no_blanks "git" "behind" "show commits on trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
-  "sync")
+  "up")
+    git push origin "${MAIN}:${MAIN}"
+    git push origin "${INTEGRATION}:${INTEGRATION}"
+
+    git push --tags
+    ;;
+  "down")
+    shift
+
+    git fetch origin ${MAIN}
+    git fetch origin ${INTEGRATION}
+
+    git_arguments $@
+    git_options :upstream
+
+    try_no_blanks "git" "down" "fetch and show commits upstream not local" ${pre_options[@]} ${post_options[@]}
+    ;;
+  "merge")
+    shift
+
+    vc_options $@
+
     root_to_branch norelease
 
-    echo ">>>syncing from: ${root}->${branch}"
+    verbosity "merging: ${branch} into ${root}"
 
-    git merge --no-ff --stat ${root}
+    try "git" "checkout the root: ${root} for merge" checkout ${root}
+    try "git" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
 
+  "rb")
+    shift
+
+    vc_options $@
+
+    git_arguments -diff $@
+
+    rollback_arguments=()
+
+    case $1 in
+      "idx")
+        # rollback index from HEAD, unstaging
+        # no files are damaged
+        rollback_arguments=("restore" "--staged")
+
+       try_no_blanks git "rb idx" "diff staged" ${pre_options[@]} --staged ${post_options}
+
+       prompt="staged changes"
+
+      "wrk")
+        # rollback workarea from discarding any
+        # unstaged changes
+        rollback_arguments=("restore") 
+
+       try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
+
+       prompt="local changes"
+
+      "mrg")
+        # rollback merge
+        rollback_arguments=("merge" "--abort")
+
+       try_no_blanks git "rb mrg" "diff staged" ${pre_options[@]} --staged ${post_options}
+
+       prompt="merge"
+      *)
+        abort "rb" "unknown rollback target" "NA" $1
+      ;;
+    esac
+
+    read -p "vc: rollback $prompt [y/n]? " rollback
+
+    if [[ "$rollback" != "y" ]]
+    then
+      abort "rb" "aborting with non \"y\" response" "NA"
+    fi
+
+    try "git" "rb" "rollback work area from the index" @rollback_arguments
+  ;;
+
   #
-  # release environment
+  # release commands
   #
+
   "check")
-    echo "===> remember to pull deps with update if warranted <==="
-
-    echo "===> fetching new commits from remote <==="
+    verbosity "check" "fetching new commits from remote"
     git fetch origin develop
 
     echo "===> showing unmerged differences <===="
+
+    verbosity "check" "showing unmerged differences"
 
     git log develop..origin/develop --oneline
 
     echo "===> checking if working tree is dirty <==="
 
-    if git diff --quiet
+    if git diff --quiet >/dev/null 2>&1
     then
       echo "working tree clean - proceed!"
     else
@@ -653,20 +1370,7 @@ case $1 in
 
     git push --tags
     ;;
-  "purge")
-    for cache in $(find . -name '__pycache__' -type d -print)
-    do
-      echo "purging cache: $cache"
-      rm -r $cache
-    done
-
-    for egg in $(find . -name '*.egg-info' -type d -print)
-    do
-      echo "purging build metadata: $egg"
-      rm -r $egg
-    done
-    ;;
-  "help"|""|*)
+  "help")
     if [[ -n $2 ]]
     then
       filter="$2"
@@ -681,13 +1385,11 @@ vc
 
 [tools commands]
 
-tools-python  = install pyen and pyenv virtual from source on UNIX (call again to update)
+tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
+tools-custom        = install zshrc.custom
+tools-prompt        = install prompt support with pyeenv, git, and project in the prompt
 
-tools-zshrc   = install hombrew, pyenv, and pyenv switching commands into .zshrc
-tools-custom  = install zshrc.custom
-tools-prompt  = install prompt support with pyeenv, git, and project in the prompt
-
-brew-upgrade  = upgrade brew packages
+brew-upgrade        = upgrade brew packages
 
 tools-brew-init     = initialize the /opt/homebrew homebrew repository
 tools-brew-upgrade  = upgrade the /opt/homebrew repository
@@ -710,46 +1412,41 @@ modall              = update all submodules
 
 [version control]
 
-begin    <name> = start feature branch <name>
-end      <name> = close feature branch <name>
-features        = list feature branches
+track <1> <2> = set upstream tracking 1=remote 2=branch
 
-bug      <name> = start a bug branch
-close    <name> = finish a bugfix merging into develop
-bugfixes <name> = list bugfix branches
+[workflow]
 
-goto     <name> = switch to feature or bugfix branch, searches branches
+begin <name>  = start feature branch
+end <name>    = close feature branch <name>
 
-track <1> <2>  = set upstream tracking 1=remote 2=branch
+bug           = start a bug branch
+close         = finish a bugfix merging into develop
 
-beta       = <feat> <msg> = create a beta tag with the devel branch feature and message
-info       = show branches, tracking, and status
-verify     = show log with signatures for verification
-status     = git state, submodule state, diffstat for changes in tree
-since      = <DATE> pull logs since date, extra <ARGS...> are passed
-fetch      = fetch main, develop, and current branch
-pull       = pull current branch no ff
+goto          = switch to feature or bugfix branch, searches branches
+
+beta <msg>    = create a beta tag with the message
+
+verify   = show log with signatures for verification
+status   = git state, submodule state, diffstat for changes in tree
+fetch    = fetch main, develop, and current branch
+pull     = pull current branch no ff
 
 [show log/diff/reports]
 
-staged     = show staged changes
-merges     = show merges only
-releases   = show releases (tags)
-history    = show commit history
+patch      = generate a unified diff
 
+list       = <merges|releases|features>
+
+history    = show commit history
+pending    = commits not in root or branch
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
-summary    = show diffstat of summary between feature and develop or last release and develop
-pending    = show log of commits that are not in root or branch (to be merged)
 
-delta      = show diff between feature and develop or last release and develop
-preview    = show diff between root and branch that is not in both (to be merged)
+report     = [-release] = generate a report of changes since integration
 
-release-report  = generate a report of changes since last release
-status-report = generate a report of changes ahead of the trunk
+up         = push up trunk changes to remote
+down       = pull down trunk and local changes
 
-graph      = show history between feature and develop or last release and develop
-upstream   = show upstream changes that havent been merged yet
 sync       = merge from the root branch commits not in this branch no ff
 
 [release]
@@ -762,11 +1459,10 @@ start      = initiate an EDITOR session to update VERSION in python.sh, reload c
 
 release    = execute git flow release finish with VERSION
 upload     = push main and develop branches and tags to remote
-
-[misc]
-
-purge      = remove all the __pycache__ dirs
 HELP
+  ;;
+  *)
+    $0 history $@
   ;;
 esac
 
