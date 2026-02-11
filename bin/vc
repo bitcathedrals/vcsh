@@ -972,13 +972,13 @@ case $1 in
 
     if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
-      verbosity "checking out feature: $name"
+      verbosity "goto" "checking out feature: $name"
       exec git checkout "feature/${name}"
     fi
 
     if git branch bugfix | grep "$name" >/dev/null 2>&1
     then
-      verbosity "checking out bugfix: $name"
+      verbosity "goto" "checking out bugfix: $name"
       exec git checkout "bugfix/${name}"
     fi
 
@@ -1230,10 +1230,10 @@ case $1 in
 
     root_to_branch norelease
 
-    verbosity "merging: ${branch} into ${root}"
+    verbosity "merge" "${branch} into ${root}"
 
-    try "git" "checkout the root: ${root} for merge" checkout ${root}
-    try "git" "merge no ff from: ${branch}" merge --no-ff ${branch}
+    try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
+    try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
 
   "rb")
@@ -1254,23 +1254,24 @@ case $1 in
        try_no_blanks git "rb idx" "diff staged" ${pre_options[@]} --staged ${post_options}
 
        prompt="staged changes"
-
+      ;;
       "wrk")
         # rollback workarea from discarding any
         # unstaged changes
         rollback_arguments=("restore") 
 
-       try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
+        try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
 
-       prompt="local changes"
-
+        prompt="local changes"
+      ;;
       "mrg")
         # rollback merge
         rollback_arguments=("merge" "--abort")
 
-       try_no_blanks git "rb mrg" "diff staged" ${pre_options[@]} --staged ${post_options}
+        try_no_blanks git "rb mrg" "diff staged" ${pre_options[@]} --staged ${post_options}
 
-       prompt="merge"
+        prompt="merge"
+      ;;
       *)
         abort "rb" "unknown rollback target" "NA" $1
       ;;
