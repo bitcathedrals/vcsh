@@ -188,13 +188,13 @@ function try {
     echo "dry run [$task]: $command $*"
     exit_status=0
   else
-    $command $@ | grep -v -E '^$'
+    $command $@
     exit_status=$?
   fi
 
   if [[ $exit_status -gt 0 ]]
   then
-    error "$task" "$command $status" "$describe" $@
+    error "$task" $exit_status "$describe" "$command" $@
   fi
 
   return $exit_status
@@ -237,7 +237,7 @@ function try_no_blanks {
 
   if [[ $exit_status -gt 0 ]]
   then
-    error "$task" "$command $status" "$describe" $@
+    error "$task" $exit_status "$describe" "$command" $@
   fi
 
   return $exit_status
@@ -1067,18 +1067,18 @@ case $1 in
 
     git_options
 
-    try_no_blanks git "status:branches" "running git banch" branch -vv $color
+#    try_no_blanks git "status:branches" "git banch" branch -vv $color
 
-    try_no_blanks git "status:status" "running git status" status
+    try_no_blanks git "status" "git status" status
 
     echo "[untracked]"
-    try git "status:untracked" "executing ls-files to show untracked" ls-files --others --exclude-standard
+    try_no_blanks "git" "status" "ls-files" ls-files --others --exclude-standard
 
     echo "[staged]"
-    try_no_blanks git "status:staged" "diff staged" diff --staged --stat $color
+    try_no_blanks git "status" "diff staged" diff --staged --stat $color
 
     echo "[changes]"
-    try_no_blanks git "status:changes" "basic diff" diff --stat $color
+    try_no_blanks git "status" "changes diffstat" diff --stat $color
     ;;
   "verify")
     exec git log --show-signature $@
