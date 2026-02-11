@@ -1,3 +1,3 @@
-COLOR='true'
+COLOR='yes'
 VERSION='0.8.0'
 

@@ -98,7 +98,7 @@ function verbosity {
 
   if [[ $# -gt 0 ]]
   then
-    info="> $*"
+    info="-> $*"
   fi
 
   echo >/dev/stderr "vc: [${task}] $describe $info"
@@ -246,7 +246,7 @@ function try_no_blanks {
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
 
-  if [[ $branch == "develop" ]]
+  if [[ $branch == "${INTEGRATION}" ]]
   then
     if [[ $1 == "norelease" ]]
     then
@@ -407,7 +407,7 @@ function git_options {
 
       if [[ -z $spec ]]
       then
-        abort "git_options" ":custom spec was missing"
+        abort "git_options" ":custom spec was missing" "NA"
       fi
 
       continue
@@ -1064,8 +1064,6 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_options
 
 #    try_no_blanks git "status:branches" "git banch" branch -vv $color
 
