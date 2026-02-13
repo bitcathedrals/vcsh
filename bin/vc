@@ -284,6 +284,16 @@ function root_to_branch {
   else
     root="${INTEGRATION}"
   fi
+
+  local=`git branch`
+
+  for branch in "$INTEGRATION" "$MAIN"
+  do
+    if ! echo $local | grep "$branch"
+    then
+      error "root_to_branch" "checking that branch exists" "$?" "branch $branch required for operation"
+    fi
+  done
 }
 
 function create_tag {
