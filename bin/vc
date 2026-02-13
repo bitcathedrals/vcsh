@@ -181,6 +181,15 @@ function try {
 
   verbosity "$task" "$describe" "$command" $@
 
+
+  ignore='false'
+
+  if echo "$command" | grep -E '^@' >/dev/null 2>&1
+  then
+    ignore='true'
+    command=`echo $command | sed -e 's,^@,,'`
+  fi
+
   exit_status=""
 
   if [[ "$DRY" == "yes" ]]
@@ -190,6 +199,11 @@ function try {
   else
     $command $@
     exit_status=$?
+  fi
+
+  if [[ "$ignore" == "true" ]]
+  then
+    return $exit_status
   fi
 
   if [[ $exit_status -gt 0 ]]
