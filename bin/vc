@@ -1145,10 +1145,10 @@ case $1 in
       fi
      ;;
   "fetch")
-    try_no_blanks "git" "git fetch" fetch
+    try_no_blanks "git" "fetch" "fetch upsteram" fetch
     ;;
   "pull")
-    git pull --no-ff
+    try_no_blanks "git" "pull" "pull from upstream" pull --no-ff
     ;;
   "patch")
     shift
@@ -1448,7 +1448,7 @@ end <name>    = close feature branch <name>
 bug           = start a bug branch
 close         = finish a bugfix merging into develop
 
-goto          = switch to feature or bugfix branch, searches branches
+goto          = switch to feature or bugfix branch by name
 
 beta <msg>    = create a beta tag with the message
 
