@@ -1106,14 +1106,27 @@ case $1 in
 
     try_no_blanks git "status" "git status" status
 
-    echo "[untracked]"
-    try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard
+    # 
+    output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
+    if [[ -n $output ]]
+    then
+      echo "[untracked]" >/dev/stderr 2>&1
+      echo "$output" >/dev/stderr 2>&1
+    fi
+      
+    output=`try_no_blanks "@git" "status" "diff staged" diff --staged --stat $color`
+    if [[ -n $output ]]
+    then
+      echo "[staged]"
+      echo "$output" >/dev/stderr 2>&1
+    fi
 
-    echo "[staged]"
-    try_no_blanks "@git" "status" "diff staged" diff --staged --stat $color
-
-    echo "[changes]"
-    try_no_blanks "@git" "status" "changes diffstat" diff --stat $color
+    output=`try_no_blanks "@git" "status" "changes diffstat" diff --stat $color`
+    if [[ -n $output ]]
+    then
+      echo "[changes]"
+      echo "$output" >/dev/stderr 2>&1
+    fi
     ;;
   "verify")
     exec git log --show-signature $@
