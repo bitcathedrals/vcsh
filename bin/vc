@@ -1157,7 +1157,7 @@ case $1 in
 
     git_options
 
-    try git "patch" "diff --cached generate patch" diff -p --no-color | sed -e 's,^--- [ab]/,--- ,' | sed -e 's,^+++ [ab]/,+++ ,'
+    try git "patch" "generate patch (git diff)" diff -p --no-color | sed -e 's,^--- [ab]/,--- ,' | sed -e 's,^+++ [ab]/,+++ ,'
     ;;
   "pending")
     shift
