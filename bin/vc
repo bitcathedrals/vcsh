@@ -47,6 +47,7 @@ DATE_DEFAULT="relative"
 
 VERBOSE='no'
 DRY='no'
+TRACE='no'
 
 #
 # vc.sh, required and overrides
@@ -366,7 +367,7 @@ function create_tag {
 # -d        : dry run
 
 function vc_options {
-  args=()
+  VC_ARGS=()
 
   while [[ $# -gt 0 ]]
   do
@@ -384,11 +385,19 @@ function vc_options {
       continue
     fi
 
-    args+=("$1")
+    if [[ "$1" == "-t" ]]
+    then
+      TRACE='yes'
+
+      set -x 
+
+      shift
+      continue
+    fi
+
+    VC_ARGS+=("$1")
     shift
   done
-
-  set -- "${args[@]}"
 }
 
 #
@@ -1057,17 +1066,13 @@ case $1 in
   "report")
     shift
 
-    type=""
+    branch="integrate"
+
+    vc_options $@
+    set -- ${VC_ARGS[@]}
 
     while [[ $# -gt 0 ]]
     do
-      if [[ $1 == "-v" ]]
-      then
-        VERBOSE="yes"
-        shift
-        continue
-      fi
-
       if [[ $1 == "-main" ]]
       then
         type="release"
@@ -1086,9 +1091,9 @@ case $1 in
       shift
     done
 
-    semantic_commits $type
+    semantic_commits $branch
 
-#    features=`get_semantics feat`
+    features=`get_semantics feat`
 #    bugs=`get_semantics bug`
 #    issues=`get_semantics issue`
 #    syncs=`get_semantics sync`
