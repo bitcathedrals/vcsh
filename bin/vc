@@ -564,7 +564,6 @@ function git_options {
 # VERBOSE       = yes/no to enable verbosity
 # CUSTOM        = a custom commit or range specification
 function git_arguments {
-  VC_ARGS=()
   remaining=()
 
   SHOW=""
