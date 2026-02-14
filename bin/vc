@@ -286,13 +286,11 @@ function root_to_branch {
     root="${INTEGRATION}"
   fi
 
-  local=`git branch`
-
-  for branch in "$INTEGRATION" "$MAIN"
+  for check in "$root" "$branch"
   do
-    if ! echo $local | grep "$branch"
+    if ! git branch | grep "$check"
     then
-      error "root_to_branch" "checking that branch exists" "$?" "branch $branch required for operation"
+      error "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
     fi
   done
 }
@@ -441,50 +439,30 @@ function git_options {
     type="custom"
   fi
 
-  while [[ $# -gt 0 ]]
+  for arg in ${VC_ARGS[@]}
   do
-    if [[ "$1" == ":custom" ]]
-    then
-      type="custom"
-      shift
-
-      spec=$1
-      shift
-
-      if [[ -z $spec ]]
-      then
-        abort "git_options" ":custom spec was missing" "NA"
-      fi
-
-      continue
-    fi
-
-    if [[ "$1" == ":upstream" ]]
+    if [[ "$arg" == ":upstream" ]]
     then
       upstream='true'
-      shift
       continue
     fi
 
-    if [[ "$1" == ":no-merges" ]]
+    if [[ "$arg" == ":no-merges" ]]
     then
       merge_flags=("--first-parent")
-      shift
       continue
     fi
 
-    if [[ "$1" == ":only-merges" ]]
+    if [[ "$arg" == ":only-merges" ]]
     then
       merging='true'
       merge_flags=("--merges")
-      shift
       continue
     fi
 
-    if [[ "$1" == ":merge" ]]
+    if [[ "$arg" == ":merge" ]]
     then
       merging='true'
-      shift
       continue
     fi
   done
@@ -527,7 +505,6 @@ function git_options {
       exit 1
     ;;
   esac
-
 
   case $COLOR in
     "yes")
@@ -588,6 +565,7 @@ function git_options {
 # CUSTOM        = a custom commit or range specification
 function git_arguments {
   VC_ARGS=()
+  remaining=()
 
   SHOW=""
   STAT=""
@@ -595,81 +573,72 @@ function git_arguments {
   TOOL="no"
   CUSTOM=""
 
-  while [[ $# -gt 0 ]]
+  for arg in ${VC_ARGS[@]}
   do
-    if [[ "$1" == "-v" ]]
+    if [[ "$arg" == "-v" ]]
     then
       VERBOSE='yes'
-      shift
       continue
     fi
 
-    if [[ "$1" == "-stat" ]]
+    if [[ "$arg" == "-stat" ]]
     then
       STAT="--stat"
-      shift
       continue
     fi
 
-    if [[ "$1" == "-color" ]]
+    if [[ "$arg" == "-color" ]]
     then
       COLOR='yes'
-      shift
       continue
     fi
 
-    if [[ "$1" == "-no-color" ]]
+    if [[ "$arg" == "-no-color" ]]
     then
       COLOR='no'
-      shift
       continue
     fi
 
-    if [[ "$1" == "-diff" ]]
+    if [[ "$arg" == "-diff" ]]
     then
       DIFF='yes'
-      shift
       continue
     fi
 
-    if [[ "$1" == "-tool" ]]
+    if [[ "$arg" == "-tool" ]]
     then
       TOOL='yes'
-      shift
       continue
     fi
 
-    if [[ "$1" == "-compact" ]]
+    if [[ "$arg" == "-compact" ]]
     then
       SHOW="--oneline"
-      shift
       continue
     fi
 
-    if [[ "$1" == "-details" ]]
+    if [[ "$arg" == "-details" ]]
     then
       SHOW="--pretty=fuller"
-      shift
       continue
     fi
 
-    if [[ "$1" == "-graph" ]]
+    if [[ "$arg" == "-graph" ]]
     then
       SHOW="--graph"
-      shift
       continue
     fi
 
     if [[ -z $CUSTOM ]]
     then
-      CUSTOM=$1
-      shift
+      CUSTOM=$arg
       continue
     fi
 
-    VC_ARGS+=$1
-    shift
+    remaining+=$arg
   done
+
+  VC_ARGS=$remaining
 }
 
 #
@@ -932,7 +901,6 @@ case $1 in
     shift
 
     vc_options $@
-
     name=$1
 
     if [[ -z $name ]]
@@ -953,8 +921,7 @@ case $1 in
     shift
 
     vc_options $@
-
-    name=$1
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -977,23 +944,34 @@ case $1 in
     ;;
   "bug")
     shift
-    name=$1
+
+    vc_options $@
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh bug: requires a name for a new bug branch as an argument"
+      abort "bug" "name of the bugfix branch to open is missing." "NA"
       exit 1
     fi
 
-    git flow bugfix start "$name"
+    try git "bug" "checkout the bugfix branch" checkout -b "${BUGFIX}/${name}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "begin" "error creating bugfix branch $name" "NA"
+    fi
+
+    verbosity "bug" "new bugfix branch \"$name\""
     ;;
   "close")
     shift
-    name=$1
+
+    vc_options $@
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh close: requires the name of the bugfix branch to close"
+      abort "close" "name of the bugfix branch to close is missing." "NA"
       exit 1
     fi
 
@@ -1003,8 +981,7 @@ case $1 in
     shift
     
     vc_options $@
-
-    name=$1
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1033,7 +1010,8 @@ case $1 in
   "beta")
     shift
 
-    message=$1
+    vc_options $@
+    message=${VC_ARGS[0]}
 
     if [[ -z $message ]]
     then
@@ -1045,7 +1023,8 @@ case $1 in
   "track")
     shift
 
-    REMOTE=$1
+    vc_options $@
+    REMOTE=${VC_ARGS[0]}
 
     if [[ -z $REMOTE ]]
     then
@@ -1053,7 +1032,7 @@ case $1 in
       exit 1
     fi
 
-    BRANCH=$2
+    BRANCH=${VC_ARGS[1]}
 
     if [[ -z $BRANCH ]]
     then
@@ -1061,7 +1040,7 @@ case $1 in
       exit 1
     fi
 
-    git branch -u $REMOTE/$BRANCH
+    try git "track" "set a branch to track a remote target" branch -u $REMOTE/$BRANCH
     ;;
   "report")
     shift
@@ -1069,7 +1048,8 @@ case $1 in
     branch="integrate"
 
     vc_options $@
-    set -- ${VC_ARGS[@]}
+    git_arguments
+    git_options
 
     while [[ $# -gt 0 ]]
     do
@@ -1111,7 +1091,6 @@ case $1 in
 
     try_no_blanks git "status" "git status" status
 
-    # 
     output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
     if [[ -n $output ]]
     then
@@ -1134,7 +1113,13 @@ case $1 in
     fi
     ;;
   "verify")
-    exec git log --show-signature $@
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options
+
+    try git "verify" "verify signatures of logs" ${pre_options[@]} --show-signature ${post_options[@]}
     ;;
   "show")
       shift
@@ -1175,8 +1160,26 @@ case $1 in
   "fetch")
     try_no_blanks "git" "fetch" "fetch upsteram" fetch
     ;;
-  "pull")
-    try_no_blanks "git" "pull" "pull from upstream" pull --no-ff
+  "get")
+    shift
+
+    vc_options $@
+    
+    branch=${VC_ARGS[0]}
+
+    if [[ -z $branch ]]
+    then
+      abort "get" "branch argument (1) not specified" "NA"
+    fi
+
+    remote=${VC_ARGS[1]}
+
+    if [[ -z $remote ]]
+    then
+      abort "get" "remote argument (2) not specified" "NA"
+    fi
+      
+    try_no_blanks "git" "get" "checkout remote branch" checkout -b $branch "${remote}/${branch}"
     ;;
   "patch")
     shift
@@ -1203,6 +1206,12 @@ case $1 in
     shift
 
     vc_options $@
+    set -- ${VC_ARGS[@]}
+
+    git_arguments $@
+    set -- ${VC_ARGS[@]}
+
+    git_options $@
 
     case $1 in
       "merges")
@@ -1210,14 +1219,13 @@ case $1 in
         try_no_blanks "git" "merges" "log of merges only" ${pre_options[@]} ${post_options[@]}
       ;;
       "releases")
-        git tag | grep release | sort -V | grep -v -E '^$'
+        try_no_blanks "git" "merges" "log of merges only" tag | grep release | sort -V | grep -v -E '^$'
       ;;
-
       "bugfixes")
-        git branch | grep "${BUGFIX}"
+        try_no_blanks git "list" "list of branches filtered for BUGFIX" branch | grep "${BUGFIX}"
       ;;    
       "features")
-        git branch | grep "${FEATURE}"
+        try_no_blanks git "list" "list of branches filtered for FEATURE" branch | grep "${FEATURE}"
       ;;
       *)
         abort "list" "list type argument missing" "NA"
@@ -1228,9 +1236,7 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_arguments $@
-
+    git_arguments
     git_options
 
     try_no_blanks "git" "history" "show commits on current branch" ${pre_options[@]} ${post_options[@]}
@@ -1239,10 +1245,8 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_arguments $@
-
-    git_options $@
+    git_arguments
+    git_options
 
     try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
     ;;
@@ -1489,7 +1493,7 @@ pull     = pull current branch no ff
 
 patch      = generate a unified diff
 
-list       = <merges|releases|features>
+list       = <merges|releases|features|bugfixes>
 
 history    = show commit history
 pending    = commits not in root or branch
