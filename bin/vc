@@ -1088,8 +1088,6 @@ case $1 in
 
     try_no_blanks git "status:branches" "git banch" branch -vv $color
 
-    try_no_blanks git "status" "git status" status
-
     output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
     if [[ -n $output ]]
     then
