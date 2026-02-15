@@ -398,6 +398,102 @@ function vc_options {
   done
 }
 
+
+#
+# git_arguments - process CLI arguments for git_options
+#
+
+# -compact      = show oneline compact form
+# -stat         = show diffstat output
+# -graph        = show graph of commit history
+# -details      = show branch details in log output
+# -decorate     = decorate history with branch information
+# -color        = color history output
+# -no-color     = don't color history output
+# -v            = verbose
+# -diff         = use a diff operation
+# -emacs        = use emacs as a difftool or mergetool
+# return
+
+# SHOW          = git flag to specify output type
+# STAT          = git 
+# DIFF          = yes if showing diff instead of logs
+# COLOR         = yes to color output
+# VERBOSE       = yes/no to enable verbosity
+function git_arguments {
+  remaining=()
+
+  SHOW=""
+  STAT=""
+  DIFF="no"
+  TOOL="no"
+
+  for arg in ${VC_ARGS[@]} $@
+  do
+    if [[ "$arg" == "-v" ]]
+    then
+      VERBOSE='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-stat" ]]
+    then
+      STAT="--stat"
+      continue
+    fi
+
+    if [[ "$arg" == "-color" ]]
+    then
+      COLOR='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-no-color" ]]
+    then
+      COLOR='no'
+      continue
+    fi
+
+    if [[ "$arg" == "-diff" ]]
+    then
+      DIFF='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-tool" ]]
+    then
+      TOOL='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-compact" ]]
+    then
+      SHOW="--oneline"
+      continue
+    fi
+
+    if [[ "$arg" == "-details" ]]
+    then
+      SHOW="--pretty=fuller"
+      continue
+    fi
+
+    if [[ "$arg" == "-graph" ]]
+    then
+      SHOW="--graph"
+      continue
+    fi
+
+    remaining+=($arg)
+  done
+
+  VC_ARGS=$remaining
+}
+
+function git_reset_args {
+  VC_ARGS=()
+}
+
 #
 # git_options
 #
@@ -547,101 +643,6 @@ function git_options {
 }
 
 #
-# git_arguments - process CLI arguments for git_options
-#
-
-# -compact      = show oneline compact form
-# -stat         = show diffstat output
-# -graph        = show graph of commit history
-# -details      = show branch details in log output
-# -decorate     = decorate history with branch information
-# -color        = color history output
-# -no-color     = don't color history output
-# -v            = verbose
-# -diff         = use a diff operation
-# -emacs        = use emacs as a difftool or mergetool
-# return
-
-# SHOW          = git flag to specify output type
-# STAT          = git 
-# DIFF          = yes if showing diff instead of logs
-# COLOR         = yes to color output
-# VERBOSE       = yes/no to enable verbosity
-function git_arguments {
-  remaining=()
-
-  SHOW=""
-  STAT=""
-  DIFF="no"
-  TOOL="no"
-
-  for arg in ${VC_ARGS[@]} $@
-  do
-    if [[ "$arg" == "-v" ]]
-    then
-      VERBOSE='yes'
-      continue
-    fi
-
-    if [[ "$arg" == "-stat" ]]
-    then
-      STAT="--stat"
-      continue
-    fi
-
-    if [[ "$arg" == "-color" ]]
-    then
-      COLOR='yes'
-      continue
-    fi
-
-    if [[ "$arg" == "-no-color" ]]
-    then
-      COLOR='no'
-      continue
-    fi
-
-    if [[ "$arg" == "-diff" ]]
-    then
-      DIFF='yes'
-      continue
-    fi
-
-    if [[ "$arg" == "-tool" ]]
-    then
-      TOOL='yes'
-      continue
-    fi
-
-    if [[ "$arg" == "-compact" ]]
-    then
-      SHOW="--oneline"
-      continue
-    fi
-
-    if [[ "$arg" == "-details" ]]
-    then
-      SHOW="--pretty=fuller"
-      continue
-    fi
-
-    if [[ "$arg" == "-graph" ]]
-    then
-      SHOW="--graph"
-      continue
-    fi
-
-    remaining+=($arg)
-  done
-
-  VC_ARGS=$remaining
-}
-
-function git_reset_args {
-  VC_ARGS=()
-}
-
-#
 # semantic_commits
 #
 
@@ -649,54 +650,14 @@ function git_reset_args {
 # filter = semantic tag to filter by
 
 function semantic_commits {
-  type="current"
+  git_options :no-merges
 
-  if [[ -n $1 ]]
-  then
-    type=$1
-  fi
-
-  spec=""
-
-  case $type in
-    "release")
-      last=`git tag | grep "${RELEASE}" | sort -V | tail -n 1`
-
-      if [[ -z $last ]]
-      then
-        abort "get_semantic_commits" "no release tags"
-      fi
-
-      spec="${last}..${MAIN}"
-    ;;
-    "integrate")
-      spec="${MAIN}..${INTEGRATION}"
-    ;;
-    "current")
-      spec="${MAIN}..${INTEGRATION}"
-    ;;
-  esac
-
-  vc_options $@
-  git_arguments -compact -no-color
-
-  if [[ -n $spec ]]
-  then
-    git_options :no-merges :custom "$spec"
-  else
-    git_options :no-merges
-  fi
-
-  REPORT=`try "git" "semantic_commits" ${pre_options[@]} ${post_options[@]}`
+  REPORT=`try "git" "semantic_commits" "get list of commits" ${pre_options[@]} ${post_options[@]}`
 }
 
 function get_semantics {
   filter=$1;
-
-  if [[ -n $REPORT ]]
-  then
-    echo "$REPORT" | cut -d ' ' -f 2-
-  fi
+  echo "$REPORT" | grep $filter | tr -s ' ' | cut -d ' ' -f 2-
 }
 
 function print_report {
@@ -1049,40 +1010,17 @@ case $1 in
   "report")
     shift
 
-    branch="integrate"
-
     vc_options $@
     git_arguments
-    git_options
 
-    while [[ $# -gt 0 ]]
-    do
-      if [[ $1 == "-main" ]]
-      then
-        type="release"
-        shift
-        continue
-      fi
-
-      if [[ $1 == "-dev" ]]
-      then
-        type="integrate"
-        shift
-        continue
-      fi
-
-      abort "report" "unrecognized option: $1" "NA"
-      shift
-    done
-
-    semantic_commits $branch
+    semantic_commits
 
     features=`get_semantics feat`
-#    bugs=`get_semantics bug`
-#    issues=`get_semantics issue`
-#    syncs=`get_semantics sync`
-#    fixes=`get_semantics fix`
-#    refactor=`get_semantics refactor`
+    fixes=`get_semantics fix`
+    bugs=`get_semantics bug`
+    issues=`get_semantics issue`
+    syncs=`get_semantics sync`
+    refactor=`get_semantics refactor`
 
     print_report
     ;;
