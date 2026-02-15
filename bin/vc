@@ -425,17 +425,16 @@ function vc_options {
 function git_options {
   remaining=()
 
-  merges='false'
+  merging='false'
   upstream="false"
+
+  merge_flags=()
 
   spec=""
 
   type="changes"
 
-  if [[ -n $CUSTOM ]]
-  then
-    type="custom"
-  fi
+  OP=''
 
   for arg in ${VC_ARGS[@]} $@
   do
@@ -464,38 +463,50 @@ function git_options {
       continue
     fi
 
+    if echo "$arg" | grep -E '^='
+    then
+      spec=`echo $arg | sed -e s,^=,,`
+      continue
+    fi
+
+    if echo "$arg" | grep -E '^!'
+    then
+      OP=`echo $arg | sed -e s,^!,,`
+      continue
+    fi
+
     remaining+=($arg)
   done
 
   VC_ARGS=$remaining
 
-  case $type in
-    "changes")
-      if [[ "$upstream" == 'true' ]]
-      then
-        spec="HEAD..@{upstream}"
-      else
-        root_to_branch norelease
-        spec="${root}..${branch}"
-      fi
-    ;;
-    "merging")
-      if [[ "$upstream" == 'true' ]]
-      then
-        spec="HEAD...@{upstream}"
-      else
-        root_to_branch norelease
-        spec="${root}...${branch}"
-      fi
-    ;;
-    "custom")
-      spec=$CUSTOM
-    ;;
-    *)
-      error "git_options" "NA" "log type not specified"
-      exit 1
-    ;;
-  esac
+  if [[ -z $spec ]]
+  then
+    case $type in
+      "changes")
+        if [[ "$upstream" == 'true' ]]
+        then
+          spec="HEAD..@{upstream}"
+        else
+          root_to_branch norelease
+          spec="${root}..${branch}"
+        fi
+      ;;
+      "merging")
+        if [[ "$upstream" == 'true' ]]
+        then
+          spec="HEAD...@{upstream}"
+        else
+          root_to_branch norelease
+          spec="${root}...${branch}"
+        fi
+      ;;
+      *)
+        error "git_options" "NA" "log type not specified"
+        exit 1
+      ;;
+    esac
+  fi
 
   case $COLOR in
     "yes")
@@ -506,16 +517,19 @@ function git_options {
     ;;
   esac
 
-  OP="log"
-
-  if [[ "$DIFF" == 'yes' ]]
+  if [[ -z $OP ]]
   then
-    OP="diff"
-  fi
+    OP="log"
 
-  if [[ "$TOOL" == 'yes' ]]
-  then
-    OP="difftool"
+    if [[ "$DIFF" == 'yes' ]]
+    then
+      OP="diff"
+    fi
+
+    if [[ "$TOOL" == 'yes' ]]
+    then
+      OP="difftool"
+    fi
   fi
 
   pre_options=($OP $DATE $COLOR $merge_flags)
@@ -553,7 +567,6 @@ function git_options {
 # DIFF          = yes if showing diff instead of logs
 # COLOR         = yes to color output
 # VERBOSE       = yes/no to enable verbosity
-# CUSTOM        = a custom commit or range specification
 function git_arguments {
   remaining=()
 
@@ -561,7 +574,6 @@ function git_arguments {
   STAT=""
   DIFF="no"
   TOOL="no"
-  CUSTOM=""
 
   for arg in ${VC_ARGS[@]} $@
   do
@@ -619,23 +631,21 @@ function git_arguments {
       continue
     fi
 
-    if echo "$arg" | grep -E '^='
-    then
-      CUSTOM=`echo $arg | sed -e s,^=,,`
-      continue
-    fi
-
     remaining+=($arg)
   done
 
   VC_ARGS=$remaining
 }
 
+function git_reset_args {
+  VC_ARGS=()
+}
+
 #
 # semantic_commits
 #
 
-# type   = release|main = return commits by "type" against either release->main or main->integration
+# type   = release|main
 # filter = semantic tag to filter by
 
 function semantic_commits {
@@ -662,8 +672,12 @@ function semantic_commits {
     "integrate")
       spec="${MAIN}..${INTEGRATION}"
     ;;
+    "current")
+      spec="${MAIN}..${INTEGRATION}"
+    ;;
   esac
 
+  vc_options $@
   git_arguments -compact -no-color
 
   if [[ -n $spec ]]
@@ -673,7 +687,7 @@ function semantic_commits {
     git_options :no-merges
   fi
 
-  try "git" "semantic_commits" log ${pre_options[@]} ${post_options[@]} | read -r REPORT
+  REPORT=`try "git" "semantic_commits" ${pre_options[@]} ${post_options[@]}`
 }
 
 function get_semantics {
@@ -1138,19 +1152,17 @@ case $1 in
           abort "show" "-n requires a number of the git log line" "NA"
         fi
 
-        verbosity "show" "commit number is: ${number} found commit id: $commit"
-
         commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${number}p" | tr -s ' ' | cut -d ' ' -f 1`
 
-        git_arguments -compact -no-color
-        git_options '=$commit'
+        verbosity "show" "commit number is: ${number} found commit id: $commit"
 
-        git show
+        git_reset_args
+        git_arguments -compact
+        git_options  "=$commit" "!show"
+
+        try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
       fi
      ;;
-  "fetch")
-    try_no_blanks "git" "fetch" "fetch upsteram" fetch
-    ;;
   "get")
     shift
 
@@ -1438,6 +1450,8 @@ tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into 
 tools-custom        = install zshrc.custom
 tools-prompt        = install prompt support with pyeenv, git, and project in the prompt
 
+[homebrew commands]
+
 brew-upgrade        = upgrade brew packages
 
 tools-brew-init     = initialize the /opt/homebrew homebrew repository
@@ -1461,42 +1475,42 @@ modall              = update all submodules
 
 [version control]
 
-track <1> <2> = set upstream tracking 1=remote 2=branch
+track <remote> <branch> = set upstream tracking
 
-[workflow]
-
-begin <name>  = start feature branch
-end <name>    = close feature branch <name>
-
-bug           = start a bug branch
-close         = finish a bugfix merging into develop
-
-goto          = switch to feature or bugfix branch by name
-
-beta <msg>    = create a beta tag with the message
-
+status   = show status of repository
 verify   = show log with signatures for verification
-status   = git state, submodule state, diffstat for changes in tree
 fetch    = fetch main, develop, and current branch
 pull     = pull current branch no ff
-
-[show log/diff/reports]
-
-patch      = generate a unified diff
-
-list       = <merges|releases|features|bugfixes>
 
 history    = show commit history
 pending    = commits not in root or branch
 ahead      = show log of commits in branch but not in parent
 behind     = show log of commit in parent but not branch
 
-report     = [-release] = generate a report of changes since integration
+patch      = generate a unified diff
 
 up         = push up trunk changes to remote
 down       = pull down trunk and local changes
 
+get <branch> <upstream> = checkout a upstream branch
 sync       = merge from the root branch commits not in this branch no ff
+
+[workflow]
+
+begin <name>  = start feature branch
+end <name>    = close feature branch <name>
+
+goto          = switch to feature or bugfix branch by name
+
+bug           = start a bug branch
+close         = finish a bugfix merging into develop
+
+beta <msg>    = create a beta tag with the message
+
+[show log/diff/reports]
+
+list       = <merges|releases|features|bugfixes>
+report     = [-release] = generate a report of changes since integration
 
 [release]
 
