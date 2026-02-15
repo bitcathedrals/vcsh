@@ -288,7 +288,7 @@ function root_to_branch {
 
   for check in "$root" "$branch"
   do
-    if ! git branch | grep "$check"
+    if ! git branch | grep "$check" >/dev/null 2>&1
     then
       error "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
     fi
@@ -625,7 +625,7 @@ function git_arguments {
       continue
     fi
 
-    remaining+=$arg
+    remaining+=($arg)
   done
 
   VC_ARGS=$remaining
@@ -1138,14 +1138,14 @@ case $1 in
           abort "show" "-n requires a number of the git log line" "NA"
         fi
 
-        verbosity "show" "commit number is: ${number}"
-
-        git_arguments -compact -no-color
-        git_options
+        verbosity "show" "commit number is: ${number} found commit id: $commit"
 
         commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${number}p" | tr -s ' ' | cut -d ' ' -f 1`
 
-        verbosity "show" "found commit id" $commit
+        git_arguments -compact -no-color
+        git_options '=$commit'
+
+        git show
       fi
      ;;
   "fetch")
