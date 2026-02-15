@@ -408,8 +408,6 @@ function vc_options {
 # :only-merges     = only show merges
 # :merge           = use ... spec to show changes not in <trunk> and <branch>
 
-# @                = files to operate on, only a single file is legal git.
-
 # DATE             = date format
 # COLOR            = yes/no show in color
 # SHOW             = flags for output type and format
@@ -419,14 +417,14 @@ function vc_options {
 # return STATUS    = 0 if succesful, 1 if there was an error
 #
 
-# 
-
 # pre_options[@]   = this array contains the options that follow
 #                    a git command, but before inserted options
 #                    and post_options
 # post_options[@]  = this array contains the options that are
 #                    at the end of a git command.
 function git_options {
+  remaining=()
+
   merges='false'
   upstream="false"
 
@@ -439,7 +437,7 @@ function git_options {
     type="custom"
   fi
 
-  for arg in ${VC_ARGS[@]}
+  for arg in ${VC_ARGS[@]} $@
   do
     if [[ "$arg" == ":upstream" ]]
     then
@@ -465,18 +463,11 @@ function git_options {
       merging='true'
       continue
     fi
+
+    remaining+=($arg)
   done
 
-  if [[ ${#VC_ARGS[@]} -gt 0 ]]
-  then
-    for f in ${VC_ARGS[@]}
-    do
-      if [[ ! -f $f ]]
-      then
-        abort "git_options" "processing unrecognized arguments" "NA" "file \"$f\" does not exist"
-      fi
-    done
-  fi
+  VC_ARGS=$remaining
 
   case $type in
     "changes")
@@ -572,7 +563,7 @@ function git_arguments {
   TOOL="no"
   CUSTOM=""
 
-  for arg in ${VC_ARGS[@]}
+  for arg in ${VC_ARGS[@]} $@
   do
     if [[ "$arg" == "-v" ]]
     then
@@ -628,9 +619,9 @@ function git_arguments {
       continue
     fi
 
-    if [[ -z $CUSTOM ]]
+    if echo "$arg" | grep -E '^='
     then
-      CUSTOM=$arg
+      CUSTOM=`echo $arg | sed -e s,^=,,`
       continue
     fi
 
@@ -1123,26 +1114,29 @@ case $1 in
 
       vc_options $@
 
-      if [[ $# -lt 1 ]]
+      git_arguments -compact -no-color
+      git_options
+
+      if [[ ${#VC_ARGS[@]} -lt 1 ]]
       then
-        git_options
         try "git" "show" "attempting to get last commit (no arg)" "show"
         exit $?
       fi
 
-      if [[ $1 == "-l" ]]
+      if [[ "${VC_ARGS[0]}" == "-l" ]]
       then 
-        git_arguments -compact -no-color
-        git_options
-
         try git "show" "a numbered list list of commits" ${pre_options[@]} ${post_options[@]} | nl
         exit $?
       fi
 
-      if [[ $1 == "-n" ]]
+      if [[ "${VC_ARGS[0]}" == "-n" ]]
       then
-        shift
-        number=$1
+        number="${VC_ARGS[1]}"
+
+        if [[ -z $number ]]
+        then
+          abort "show" "-n requires a number of the git log line" "NA"
+        fi
 
         verbosity "show" "commit number is: ${number}"
 
