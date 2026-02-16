@@ -363,6 +363,7 @@ function create_tag {
 
 # -v        : verbose
 # -d        : dry run
+# -t        : trace
 
 function vc_options {
   VC_ARGS=()
@@ -398,6 +399,46 @@ function vc_options {
   done
 }
 
+
+function git_reset_args {
+  VC_ARGS=()
+}
+
+#
+# git_scrub_arguments
+#
+
+# sometimes we get weird VC_ARGS that are empty but the count
+# is 1. This is extremely difficult to track down without a bash
+# ultra deep dive. Its far more time effective to scrub the
+# VC_ARGS array.
+
+function git_scrub_arguments {
+  clean=()
+  count=0
+
+  echo "in clean arguments"
+
+  for arg in ${VC_ARGS[@]}
+  do
+    count=$(($count + 1))
+
+    if echo "$arg" | grep -E '^[[:space:]]*$'
+    then
+      continue
+    fi
+
+    clean+=($arg)
+  done
+
+  if [[ $count -gt 0 ]]
+  then
+    VC_ARGS=clean
+    return
+  fi
+
+  VC_ARGS=()
+}
 
 #
 # git_arguments - process CLI arguments for git_options
@@ -488,10 +529,6 @@ function git_arguments {
   done
 
   VC_ARGS=$remaining
-}
-
-function git_reset_args {
-  VC_ARGS=()
 }
 
 #
@@ -1068,9 +1105,13 @@ case $1 in
 
       git_arguments -compact -no-color
       git_options
+      
+      git_scrub_arguments
 
       if [[ ${#VC_ARGS[@]} -lt 1 ]]
       then
+        echo "this is the point: ${VC_ARGS[@]}"
+
         try "git" "show" "attempting to get last commit (no arg)" "show"
         exit $?
       fi
