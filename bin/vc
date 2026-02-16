@@ -1233,7 +1233,17 @@ case $1 in
     try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
     try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
+  "pull")
+    shift
 
+    vc_options $@
+
+    root_to_branch norelease
+
+    verbosity "merge" "merge from ${root}"
+
+    try "git" "merge" "merge no ff from: ${root}" merge --no-ff ${root}
+    ;;
   "rb")
     shift
 
@@ -1363,12 +1373,6 @@ case $1 in
   "release")
     git flow release finish $VERSION || exit 1
     ;;
-  "upload")
-    git push origin main:main
-    git push origin develop:develop
-
-    git push --tags
-    ;;
   "help")
     if [[ -n $2 ]]
     then
@@ -1413,53 +1417,58 @@ modall              = update all submodules
 
 [version control]
 
-track <remote> <branch> = set upstream tracking
-
 status   = show status of repository
 verify   = show log with signatures for verification
-fetch    = fetch main, develop, and current branch
-pull     = pull current branch no ff
+show     = show commit objects
 
-history    = show commit history
-pending    = commits not in root or branch
-ahead      = show log of commits in branch but not in parent
-behind     = show log of commit in parent but not branch
+history  = show commit history
+pending  = commits not in root or branch
+ahead    = show log of commits in branch but not in parent
+behind   = show log of commit in parent but not branch
 
 patch      = generate a unified diff
 
-up         = push up trunk changes to remote
-down       = pull down trunk and local changes
+track <remote> <branch> = set upstream tracking
+
+fetch    = fetch main, develop, and current branch
 
 get <branch> <upstream> = checkout a upstream branch
-sync       = merge from the root branch commits not in this branch no ff
+
+rb       = rollback to idx,wrk,mrg for index,work, abort merge
 
 [workflow]
+
+up       = push up trunk and main to remote
+down     = pull down trunk and main changes
+
+merge    = merge branch into trunk
+pull     = merge from trunk to branch
 
 begin <name>  = start feature branch
 end <name>    = close feature branch <name>
 
+bug <name>    = start a bug branch
+close <close> = finish a bugfix merging into develop
+
 goto          = switch to feature or bugfix branch by name
-
-bug           = start a bug branch
-close         = finish a bugfix merging into develop
-
-beta <msg>    = create a beta tag with the message
 
 [show log/diff/reports]
 
 list       = <merges|releases|features|bugfixes>
-report     = [-release] = generate a report of changes since integration
+report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-check      = fetch main, develop from origin and show log of any pending changes
-start      = initiate an EDITOR session to update VERSION in python.sh, reload config,
-             snapshot Pipfile if present, and start a git flow release with VERSION
+beta <msg>    = create a beta tag with the message
 
-             for the first time pass version as an argument e.g: "vc start 1.0.0"
+check         = fetch main, develop from origin and show log of any pending changes
+start         = initiate an EDITOR session to update VERSION in python.sh, reload config,
+                snapshot Pipfile if present, and start a git flow release with VERSION
+
+                for the first time pass version as an argument e.g: "vc start 1.0.0"
 
 release    = execute git flow release finish with VERSION
-upload     = push main and develop branches and tags to remote
+
 HELP
   ;;
   *)
