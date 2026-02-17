@@ -148,7 +148,6 @@ function abort {
   then
     exit_code=$1
   fi
-  shift
 
   if [[ -n $exit_code ]]
   then
