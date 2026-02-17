@@ -1022,28 +1022,83 @@ case $1 in
 
     create_tag "beta" "$FEATURE" "$MESSAGE"
     ;;
+  "add")
+    shift
+
+    vc_options $@
+
+    if [[ ${#VC_ARGS[@]} -lt 2 ]]
+    then
+      abort "add" "add requires 2 arguments <name> <url>" "NA"
+    fi
+
+    NAME=${VC_ARGS[0]}
+
+    if [[ -z $NAME ]]
+    then
+      abort "add" "vcsh add - repo name is missing." "NA"
+    fi
+
+    URL=${VC_ARGS[1]}
+
+    if [[ -z $URL ]]
+    then
+      abort "add" "vcsh add - repo URL is missing." "NA"
+    fi
+
+    try git "add" "add a new remote" remote add "$NAME" "$URL"
+  ;;
   "track")
     shift
 
     vc_options $@
-    REMOTE=${VC_ARGS[0]}
+
+    if [[ ${#VC_ARGS[@]} -lt 3 ]]
+    then
+      abort "track" "track requires 3 arguments <local> <remote> <branch>" "NA"
+    fi
+
+    LOCAL=${VC_ARGS[0]}
+
+    if [[ -z $LOCAL ]]
+    then
+      abort "track" "vcsh track - local branch (1) is missing." "NA"
+    fi
+
+    REMOTE=${VC_ARGS[1]}
 
     if [[ -z $REMOTE ]]
     then
-      echo >/dev/stderr "vcsh: track - a remote (1) is missing"
-      exit 1
+      abort "track" "vcsh track - remote (2) is missing." "NA"
     fi
 
-    BRANCH=${VC_ARGS[1]}
+    BRANCH=${VC_ARGS[2]}
 
     if [[ -z $BRANCH ]]
     then
-      echo >/dev/stderr "vcsh track - a branch (2) is missing."
-      exit 1
+      abort "track" "vcsh track - branch (3) is missing." "NA"
     fi
 
-    try git "track" "set a branch to track a remote target" branch -u $REMOTE/$BRANCH
+    try git "track" "track a new remote branch" checkout -b $LOCAL $REMOTE/$BRANCH
     ;;
+  "diff")
+    shift
+
+    vc_options $@
+
+    if [[ ${#VC_ARGS[@]} -lt 1 ]]
+    then
+      git_arguments "-diff"
+    else
+      BRANCH=${VC_ARGS[0]}
+
+      git_arguments "-diff" "=${BRANCH}"
+    fi
+
+    git_options
+
+    try "git" "diff" "diff against parent or given branch" ${pre_options} ${post_options}
+  ;;
   "report")
     shift
 
@@ -1161,7 +1216,7 @@ case $1 in
       abort "get" "remote argument (2) not specified" "NA"
     fi
       
-    try_no_blanks "git" "get" "checkout remote branch" checkout -b $branch "${remote}/${branch}"
+    try_no_blanks "git" "get" "checkout remote branch" checkout "${remote}/${branch}"
     ;;
   "patch")
     shift
@@ -1467,15 +1522,16 @@ pending  = commits not in root or branch
 ahead    = show log of commits in branch but not in parent
 behind   = show log of commit in parent but not branch
 
-patch      = generate a unified diff
-
-track <remote> <branch> = set upstream tracking
-
-fetch    = fetch main, develop, and current branch
-
-get <branch> <upstream> = checkout a upstream branch
+diff <branch> = diff against parent branch (default) 
+patch         = generate a unified diff
 
 rb       = rollback to idx,wrk,mrg for index,work, abort merge
+
+[repository commands]
+
+add <remote> <branch>   = check out a remote branch with the same name
+get <branch> <upstream> = checkout a upstream branch
+track <local> <remote> <branch> = checkout remote branch with a local name
 
 [workflow]
 
@@ -1493,22 +1549,17 @@ close <close> = finish a bugfix merging into develop
 
 goto          = switch to feature or bugfix branch by name
 
-[show log/diff/reports]
+[list branches & make reports]
 
 list       = <merges|releases|features|bugfixes>
 report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-beta <msg>    = create a beta tag with the message
-
-check         = fetch main, develop from origin and show log of any pending changes
-start         = initiate an EDITOR session to update VERSION in python.sh, reload config,
-                snapshot Pipfile if present, and start a git flow release with VERSION
-
-                for the first time pass version as an argument e.g: "vc start 1.0.0"
-
-release    = execute git flow release finish with VERSION
+beta <msg>       = create a beta tag with the message
+check            = fetch main, develop, show log of any pending changes
+start <version>  = start the release process for version
+release          = execute git flow release finish with VERSION
 
 HELP
   ;;
