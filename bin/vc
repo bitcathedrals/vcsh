@@ -1011,7 +1011,7 @@ case $1 in
       exec git checkout "bugfix/${name}"
     fi
 
-    abort "\"$name\" not found in features or bugfixes"
+    abort "goto" "\"$name\" not found in features or bugfixes" "NA"
     ;;    
   "beta")
     shift
