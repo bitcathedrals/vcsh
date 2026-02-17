@@ -1046,6 +1046,7 @@ case $1 in
     fi
 
     try git "add" "add a new remote" remote add "$NAME" "$URL"
+    try git "add" "fetch from remote" fetch "$NAME"
   ;;
   "track")
     shift
