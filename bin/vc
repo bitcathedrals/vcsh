@@ -994,7 +994,7 @@ case $1 in
       abort "goto" "name of the bug or feature branch required" "NA"
     fi
 
-    if [[ "$name" == "$INTEGRATON" || "$name" == "$MAIN" ]]
+    if [[ "$name" == "$INTEGRATION" || "$name" == "$MAIN" ]]
     then
       exec git checkout "$name"
     fi
