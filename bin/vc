@@ -527,6 +527,8 @@ function git_arguments {
   done
 
   VC_ARGS=$remaining
+
+  git_scrub_arguments
 }
 
 #
@@ -594,13 +596,13 @@ function git_options {
       continue
     fi
 
-    if echo "$arg" | grep -E '^='
+    if echo "$arg" | grep -E '^=' >/dev/null 2>&1
     then
       spec=`echo $arg | sed -e s,^=,,`
       continue
     fi
 
-    if echo "$arg" | grep -E '^!'
+    if echo "$arg" | grep -E '^!' >/dev/null 2>&1
     then
       OP=`echo $arg | sed -e s,^!,,`
       continue
@@ -610,6 +612,8 @@ function git_options {
   done
 
   VC_ARGS=$remaining
+
+  git_scrub_arguments
 
   if [[ -z $spec ]]
   then
@@ -633,8 +637,7 @@ function git_options {
         fi
       ;;
       *)
-        error "git_options" "NA" "log type not specified"
-        exit 1
+        abort "git_options" "log type not specified" "NA"
       ;;
     esac
   fi
@@ -661,6 +664,11 @@ function git_options {
     then
       OP="difftool"
     fi
+  fi
+
+  if [[ "$OP" != "log" ]]
+  then
+    DATE=""
   fi
 
   pre_options=($OP $DATE $COLOR $merge_flags)
