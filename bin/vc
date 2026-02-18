@@ -415,8 +415,6 @@ function git_scrub_arguments {
   clean=()
   count=0
 
-  echo "in clean arguments"
-
   for arg in ${VC_ARGS[@]}
   do
     count=$(($count + 1))
