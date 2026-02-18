@@ -1325,11 +1325,16 @@ case $1 in
 
     vc_options $@
 
-    root_to_branch norelease
+    if [[ ${#VC_ARGS[@]} -gt 0 ]]
+    then
+      branch=${VC_ARGS[0]}
+    else
+      root_to_branch norelease
+      try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
+    fi
 
-    verbosity "merge" "${branch} into ${root}"
+    verbosity "merge" "merge ${branch}"
 
-    try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
     try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
   "pull")
