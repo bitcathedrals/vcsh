@@ -415,8 +415,6 @@ function git_scrub_arguments {
   clean=()
   count=0
 
-  echo "in clean arguments"
-
   for arg in ${VC_ARGS[@]}
   do
     count=$(($count + 1))
@@ -527,6 +525,8 @@ function git_arguments {
   done
 
   VC_ARGS=$remaining
+
+  git_scrub_arguments
 }
 
 #
@@ -594,13 +594,13 @@ function git_options {
       continue
     fi
 
-    if echo "$arg" | grep -E '^='
+    if echo "$arg" | grep -E '^=' >/dev/null 2>&1
     then
       spec=`echo $arg | sed -e s,^=,,`
       continue
     fi
 
-    if echo "$arg" | grep -E '^!'
+    if echo "$arg" | grep -E '^!' >/dev/null 2>&1
     then
       OP=`echo $arg | sed -e s,^!,,`
       continue
@@ -610,6 +610,8 @@ function git_options {
   done
 
   VC_ARGS=$remaining
+
+  git_scrub_arguments
 
   if [[ -z $spec ]]
   then
@@ -633,8 +635,7 @@ function git_options {
         fi
       ;;
       *)
-        error "git_options" "NA" "log type not specified"
-        exit 1
+        abort "git_options" "log type not specified" "NA"
       ;;
     esac
   fi
@@ -661,6 +662,11 @@ function git_options {
     then
       OP="difftool"
     fi
+  fi
+
+  if [[ "$OP" != "log" ]]
+  then
+    DATE=""
   fi
 
   pre_options=($OP $DATE $COLOR $merge_flags)
@@ -986,7 +992,7 @@ case $1 in
       abort "goto" "name of the bug or feature branch required" "NA"
     fi
 
-    if [[ "$name" == "$INTEGRATON" || "$name" == "$MAIN" ]]
+    if [[ "$name" == "$INTEGRATION" || "$name" == "$MAIN" ]]
     then
       exec git checkout "$name"
     fi
@@ -1003,7 +1009,7 @@ case $1 in
       exec git checkout "bugfix/${name}"
     fi
 
-    abort "\"$name\" not found in features or bugfixes"
+    abort "goto" "\"$name\" not found in features or bugfixes" "NA"
     ;;    
   "beta")
     shift
@@ -1317,11 +1323,16 @@ case $1 in
 
     vc_options $@
 
-    root_to_branch norelease
+    if [[ ${#VC_ARGS[@]} -gt 0 ]]
+    then
+      branch=${VC_ARGS[0]}
+    else
+      root_to_branch norelease
+      try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
+    fi
 
-    verbosity "merge" "${branch} into ${root}"
+    verbosity "merge" "merge ${branch}"
 
-    try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
     try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
     ;;
   "pull")
