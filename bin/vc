@@ -49,6 +49,8 @@ VERBOSE='no'
 DRY='no'
 TRACE='no'
 
+FILES=()
+
 #
 # vc.sh, required and overrides
 #
@@ -74,6 +76,36 @@ done
 test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
 
 DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
+
+#
+# ask_yn      - ask with a prompt 
+#
+
+# prompt      - the prompt
+
+# YN          - the result of the prompt, "y" or "n"
+
+function ask_yn {
+  YN=""
+
+  while [[ -z $YN ]]
+  do
+    read -p "$1 y/n? " YN
+
+    case $YN in
+      "y")
+        return 0
+      ;;
+      "n")
+        return 1
+      ;;
+      *)
+        echo "unrecognized answer $YN please try again." >/dev/stderr 2>&1
+        YN=""
+      ;;
+    esac
+  done
+}
 
 #
 # verbosity - print information to stderr if VERBOSE = 'yes'
@@ -345,9 +377,9 @@ function create_tag {
 
   echo >/dev/stderr "tag is: $TAG with $message"
 
-  read -p "create tag? [y/n]: " choice
+  
 
-  if [[ $choice == "y" ]]
+  if ask_yn "create tag"
   then
     git tag -a -m $TAG
   else
@@ -521,6 +553,12 @@ function git_arguments {
       continue
     fi
 
+    if [[ -f $arg ]]
+    then
+      FILES+=($arg)
+      continue
+    fi
+
     remaining+=($arg)
   done
 
@@ -673,9 +711,9 @@ function git_options {
 
   post_options=($SHOW $STAT $spec)
 
-  if [[ ${#files[@]} -gt 0 ]]
+  if [[ ${#FILES[@]} -gt 0 ]]
   then
-    post_options+=(${post_options[@]} "--follow" "--" ${files[@]})
+    post_options+=(${post_options[@]} "--follow" "--" ${FILES[@]})
   fi
 
   verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
@@ -929,7 +967,7 @@ case $1 in
 
     if [[ -z $name ]]
     then
-      abort "end" "get name of branch" "NA"
+      abort "end" "name of branch missing" "NA"
     fi
 
     if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
@@ -937,14 +975,7 @@ case $1 in
       abort "end" "feature branch ${name} not found" "NA"
     fi
 
-    try git "end" "checkout trunk" checkout "${INTEGRATION}"
-
-    checkout_status=$?
-
-    if $[[ $checkout_status -gt 0 ]]
-    then
-      abort "end" "error switching to ${INTEGRATION} branch for merging ${name}" $checkout_status
-    fi
+    $0 merge
     ;;
   "bug")
     shift
@@ -1325,15 +1356,21 @@ case $1 in
 
     if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
+      root=`try "git" "get the current branch" branch | grep '*' | cut -d ' ' -f 2`
       branch=${VC_ARGS[0]}
     else
       root_to_branch norelease
-      try "git" "merge" "checkout the root: ${root} for merge" checkout ${root}
+      try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
     fi
 
-    verbosity "merge" "merge ${branch}"
+    if ask_yn "merge $branch into $root?"
+    then
+      verbosity "merge" "merging ${branch}"
 
-    try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+      try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+    else
+      abort "merge" "answer to merge is no" "NA"
+    fi
     ;;
   "pull")
     shift
@@ -1387,14 +1424,12 @@ case $1 in
       ;;
     esac
 
-    read -p "vc: rollback $prompt [y/n]? " rollback
-
-    if [[ "$rollback" != "y" ]]
+    if ask_yn "rollback $prompt"
     then
+      try "git" "rb" "rollback work area from the index" @rollback_arguments
+    else
       abort "rb" "aborting with non \"y\" response" "NA"
     fi
-
-    try "git" "rb" "rollback work area from the index" @rollback_arguments
   ;;
 
   #
@@ -1430,9 +1465,7 @@ case $1 in
 
     echo "EDITOR is: $EDITOR ... correct?"
 
-    read -p "Proceed? [y/n]: " proceed
-
-    if [[ $proceed = "y" ]]
+    if ask_yn "proceed with release"
     then
       echo ">>> proceeding with release start!"
     else
