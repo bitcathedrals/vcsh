@@ -1356,14 +1356,14 @@ case $1 in
 
     if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
-      root=`try "git" "get the current branch" branch | grep '*' | cut -d ' ' -f 2`
+      root=`git branch | grep '*' | cut -d ' ' -f 2`
       branch=${VC_ARGS[0]}
     else
       root_to_branch norelease
       try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
     fi
 
-    if ask_yn "merge $branch into $root?"
+    if ask_yn "merge $branch into \"$root\""
     then
       verbosity "merge" "merging ${branch}"
 
