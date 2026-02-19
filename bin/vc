@@ -993,7 +993,7 @@ case $1 in
 
     if [[ $? -ne 0 ]]
     then
-      abort "begin" "error creating bugfix branch $name" "NA"
+      abort "bug" "error creating bugfix branch $name" "NA"
     fi
 
     verbosity "bug" "new bugfix branch \"$name\""
@@ -1006,11 +1006,15 @@ case $1 in
 
     if [[ -z $name ]]
     then
-      abort "close" "name of the bugfix branch to close is missing." "NA"
-      exit 1
+      abort "end" "name of branch missing" "NA"
     fi
 
-    git flow bugfix finish $name
+    if ! git branch | grep "${BUGFIX}/${name}" >/dev/null 2>&1
+    then
+      abort "end" "bug branch ${name} not found" "NA"
+    fi
+
+    $0 merge
     ;;
   "goto")
     shift
@@ -1234,6 +1238,10 @@ case $1 in
 
     vc_options $@
     
+    git_arguments -compact
+
+    git_options ":upstream"
+
     branch=${VC_ARGS[0]}
 
     if [[ -z $branch ]]
@@ -1248,7 +1256,16 @@ case $1 in
       abort "get" "remote argument (2) not specified" "NA"
     fi
       
-    try_no_blanks "git" "get" "checkout remote branch" checkout "${remote}/${branch}"
+    try "git" "get" "fetch commits from $remote" fetch "$remote"
+
+    try "git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+
+    if ! try_yn "merge upstream changes into current branch"
+    then
+      exit 0
+    fi
+     
+    $0 merge "${remote}/${branch}"
     ;;
   "patch")
     shift
