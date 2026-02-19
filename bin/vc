@@ -480,6 +480,7 @@ function git_scrub_arguments {
 # -color        = color history output
 # -no-color     = don't color history output
 # -v            = verbose
+# -<n>          = limit number of entries returned
 # -diff         = use a diff operation
 # -emacs        = use emacs as a difftool or mergetool
 # return
@@ -494,11 +495,14 @@ function git_arguments {
 
   SHOW=""
   STAT=""
+  LIMIT=""
   DIFF="no"
   TOOL="no"
 
   for arg in ${VC_ARGS[@]} $@
   do
+    echo "arg is: $arg"
+
     if [[ "$arg" == "-v" ]]
     then
       VERBOSE='yes'
@@ -520,6 +524,12 @@ function git_arguments {
     if [[ "$arg" == "-no-color" ]]
     then
       COLOR='no'
+      continue
+    fi
+
+    if echo "$arg" | grep -E "^[[:digit:]]" >/dev/null 2>&1
+    then
+      LIMIT="-${arg}"
       continue
     fi
 
@@ -709,7 +719,7 @@ function git_options {
 
   pre_options=($OP $DATE $COLOR $merge_flags)
 
-  post_options=($SHOW $STAT $spec)
+  post_options=($SHOW $LIMIT $STAT $spec)
 
   if [[ ${#FILES[@]} -gt 0 ]]
   then
