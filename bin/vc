@@ -1257,22 +1257,28 @@ case $1 in
       try "git" "get" "fetch commits from $remote" fetch "$remote"
     else
       git_options ":upstream"
+
+      current=`git branch | grep '\*' | cut -d ' ' -f 2`
+
+      remote=`git config branch.${current}.remote`
+      branch=`git config branch.${current}.merge | sed -e s,^.*/,,g`
+
       try "git" "get" "fetch commits from default remote" fetch
     fi
       
-    try_no_blanks "git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "get" "no commits upstream" "NA"
+    fi
 
     if ! ask_yn "merge upstream changes into current branch"
     then
       exit 0
     fi
      
-    if [[ ${#VC_ARGS[@]} -gt 1 ]]
-    then
-      $0 merge "${remote}/${branch}"
-    else
-      $0 merge
-    fi
+    $0 merge "${remote}/${branch}"
     ;;
   "patch")
     shift
