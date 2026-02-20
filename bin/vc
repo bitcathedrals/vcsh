@@ -1350,18 +1350,15 @@ case $1 in
     vc_options $@
     git_arguments
 
-    echo "arg is ${VC_ARGS[0]}"
-
-    if [[ "$VC_ARGS[0]}" == "trunk" ]]
+    if [[ "${VC_ARGS[0]}" == "trunk" ]]
     then
-      echo "in trunk"
       root_to_branch norelease
       git_options "=${branch}..${root}"
     else
       git_options ":upstream"
     fi
 
-    try_no_blanks "git" "behind" "show commits on trunk not in branch" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
   "up")
     git push origin "${MAIN}:${MAIN}"
