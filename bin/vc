@@ -1358,7 +1358,7 @@ case $1 in
       git_options ":upstream"
     fi
 
-    try_no_blanks "git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
   "up")
     git push origin "${MAIN}:${MAIN}"
@@ -1587,10 +1587,10 @@ show     = show commit objects
 history  = show commit history
 pending  = commits not in root or branch
 ahead    = show log of commits in branch but not in parent
-behind   = show log of commit in parent but not branch
+behind <trunk> = show upstream or "trunk" changes not in branch
 
-diff <branch> = diff against parent branch (default) 
-patch         = generate a unified diff
+diff <branch>  = diff against parent branch (default) 
+patch          = generate a unified diff
 
 rb       = rollback to idx,wrk,mrg for index,work, abort merge
 
