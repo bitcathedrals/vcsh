@@ -1247,23 +1247,17 @@ case $1 in
     vc_options $@
     git_arguments -compact
 
-    branch=${VC_ARGS[0]}
-
-    if [[ -z $branch ]]
+    if [[ ${#VC_ARGS[@]} -gt 1 ]]
     then
-      git_options ":upstream"
-      try "git" "get" "fetch commits from default remote" fetch
-    else
       git_options
 
-      remote=${VC_ARGS[1]}
-
-      if [[ -z $remote ]]
-      then
-        abort "get" "remote argument (2) not specified" "NA"
-      fi
+      remote=${VC_ARGS[0]}
+      branch=${VC_ARGS[1]}
 
       try "git" "get" "fetch commits from $remote" fetch "$remote"
+    else
+      git_options ":upstream"
+      try "git" "get" "fetch commits from default remote" fetch
     fi
       
     try_no_blanks "git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
@@ -1273,7 +1267,12 @@ case $1 in
       exit 0
     fi
      
-    $0 merge "${remote}/${branch}"
+    if [[ ${#VC_ARGS[@]} -gt 1 ]]
+    then
+      $0 merge "${remote}/${branch}"
+    else
+      $0 merge
+    fi
     ;;
   "patch")
     shift
