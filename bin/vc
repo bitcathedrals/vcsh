@@ -461,7 +461,7 @@ function git_scrub_arguments {
 
   if [[ $count -gt 0 ]]
   then
-    VC_ARGS=clean
+    VC_ARGS=${clean[@]}
     return
   fi
 
@@ -501,8 +501,6 @@ function git_arguments {
 
   for arg in ${VC_ARGS[@]} $@
   do
-    echo "arg is: $arg"
-
     if [[ "$arg" == "-v" ]]
     then
       VERBOSE='yes'
@@ -1350,12 +1348,18 @@ case $1 in
     shift
 
     vc_options $@
+    git_arguments
 
-    git_arguments $@
+    echo "arg is ${VC_ARGS[0]}"
 
-    root_to_branch norelease
-
-    git_options
+    if [[ "$VC_ARGS[0]}" == "trunk" ]]
+    then
+      echo "in trunk"
+      root_to_branch norelease
+      git_options "=${branch}..${root}"
+    else
+      git_options ":upstream"
+    fi
 
     try_no_blanks "git" "behind" "show commits on trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
