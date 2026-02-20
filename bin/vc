@@ -485,6 +485,7 @@ function git_scrub_arguments {
 # -emacs        = use emacs as a difftool or mergetool
 # return
 
+# LIMIT         = count of how many elements to limit output to.
 # SHOW          = git flag to specify output type
 # STAT          = git 
 # DIFF          = yes if showing diff instead of logs
@@ -1205,13 +1206,22 @@ case $1 in
       git_arguments -compact -no-color
       git_options
       
-      git_scrub_arguments
+#     this is where the bug manifests in git_arguments. count is 1 but there
+#     are no elements
 
-      if [[ ${#VC_ARGS[@]} -lt 1 ]]
+#     git_scrub_arguments
+
+      if echo "${VC_ARGS[0]}" | grep -E '^\+'
       then
-        echo "this is the point: ${VC_ARGS[@]}"
+       index=`echo ${VC_ARGS[0]} | sed -e 's,^+,,g'`
 
-        try "git" "show" "attempting to get last commit (no arg)" "show"
+       commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${index}p" | tr -s ' ' | cut -d ' ' -f 1`
+
+        verbosity "show" "commit number is: ${index} found commit id: $commit"
+
+        git_options  "=$commit" "!show"
+
+        try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
         exit $?
       fi
 
@@ -1219,26 +1229,6 @@ case $1 in
       then 
         try git "show" "a numbered list list of commits" ${pre_options[@]} ${post_options[@]} | nl
         exit $?
-      fi
-
-      if [[ "${VC_ARGS[0]}" == "-n" ]]
-      then
-        number="${VC_ARGS[1]}"
-
-        if [[ -z $number ]]
-        then
-          abort "show" "-n requires a number of the git log line" "NA"
-        fi
-
-        commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${number}p" | tr -s ' ' | cut -d ' ' -f 1`
-
-        verbosity "show" "commit number is: ${number} found commit id: $commit"
-
-        git_reset_args
-        git_arguments -compact
-        git_options  "=$commit" "!show"
-
-        try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
       fi
      ;;
   "get")
@@ -1585,9 +1575,9 @@ modall              = update all submodules
 
 [version control]
 
-status   = show status of repository
-verify   = show log with signatures for verification
-show     = show commit objects
+status            = show status of repository
+verify            = show log with signatures for verification
+show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
 
 history  = show commit history
 pending  = commits not in root or branch
