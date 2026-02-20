@@ -1245,30 +1245,30 @@ case $1 in
     shift
 
     vc_options $@
-    
     git_arguments -compact
-
-    git_options ":upstream"
 
     branch=${VC_ARGS[0]}
 
     if [[ -z $branch ]]
     then
-      abort "get" "branch argument (1) not specified" "NA"
-    fi
+      git_options ":upstream"
+      try "git" "get" "fetch commits from default remote" fetch
+    else
+      git_options
 
-    remote=${VC_ARGS[1]}
+      remote=${VC_ARGS[1]}
 
-    if [[ -z $remote ]]
-    then
-      abort "get" "remote argument (2) not specified" "NA"
+      if [[ -z $remote ]]
+      then
+        abort "get" "remote argument (2) not specified" "NA"
+      fi
+
+      try "git" "get" "fetch commits from $remote" fetch "$remote"
     fi
       
-    try "git" "get" "fetch commits from $remote" fetch "$remote"
+    try_no_blanks "git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
 
-    try "git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
-
-    if ! try_yn "merge upstream changes into current branch"
+    if ! ask_yn "merge upstream changes into current branch"
     then
       exit 0
     fi
