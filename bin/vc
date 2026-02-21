@@ -1359,13 +1359,14 @@ case $1 in
   "down")
     shift
 
-    git fetch origin ${MAIN}
-    git fetch origin ${INTEGRATION}
+    vc_options $@
 
-    git_arguments $@
-    git_options :upstream
+    git_arguments
+    git_options
 
-    try_no_blanks "git" "down" "fetch and show commits upstream not local" ${pre_options[@]} ${post_options[@]}
+    try "git" "down" "fetch from upstream" fetch origin
+
+    try_no_blanks "git" "down" "show commits upstream" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
     shift
