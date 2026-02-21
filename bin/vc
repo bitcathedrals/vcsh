@@ -1274,7 +1274,7 @@ case $1 in
     shift
 
     vc_options $@
-
+    git_arguments
     git_options
 
     try git "patch" "generate patch (git diff)" diff -p --no-color | sed -e 's,^--- [ab]/,--- ,' | sed -e 's,^+++ [ab]/,+++ ,'
@@ -1283,10 +1283,8 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_arguments $@
-
-    git_options :merge
+    git_arguments
+    git_options
 
     try_no_blanks "git" "pending" "show work not in root" ${pre_options[@]} ${post_options[@]}
     exit $?
@@ -1295,20 +1293,15 @@ case $1 in
     shift
 
     vc_options $@
-    set -- ${VC_ARGS[@]}
-
-    git_arguments $@
-    set -- ${VC_ARGS[@]}
-
-    git_options $@
+    git_arguments
 
     case $1 in
       "merges")
         git_options ":only-merges" $@
-        try_no_blanks "git" "merges" "log of merges only" ${pre_options[@]} ${post_options[@]}
+        try_no_blanks "git" "list" "log of merges only" ${pre_options[@]} ${post_options[@]}
       ;;
       "releases")
-        try_no_blanks "git" "merges" "log of merges only" tag | grep release | sort -V | grep -v -E '^$'
+        try_no_blanks "git" "list" "log of merges only" tag | grep release | sort -V | grep -v -E '^$'
       ;;
       "bugfixes")
         try_no_blanks git "list" "list of branches filtered for BUGFIX" branch | grep "${BUGFIX}"
