@@ -377,8 +377,6 @@ function create_tag {
 
   echo >/dev/stderr "tag is: $TAG with $message"
 
-  
-
   if ask_yn "create tag"
   then
     git tag -a -m $TAG
@@ -1283,9 +1281,7 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_arguments $@
-
+    git_arguments
     git_options :merge
 
     try_no_blanks "git" "pending" "show work not in root" ${pre_options[@]} ${post_options[@]}
@@ -1295,12 +1291,8 @@ case $1 in
     shift
 
     vc_options $@
-    set -- ${VC_ARGS[@]}
-
-    git_arguments $@
-    set -- ${VC_ARGS[@]}
-
-    git_options $@
+    git_arguments
+    git_options
 
     case $1 in
       "merges")
@@ -1356,10 +1348,13 @@ case $1 in
     try_no_blanks "@git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
     ;;
   "up")
-    git push origin "${MAIN}:${MAIN}"
-    git push origin "${INTEGRATION}:${INTEGRATION}"
+    shift
+    vc_options $@
 
-    git push --tags
+    try_no_blanks "git" "up" "push main branch" push origin "${MAIN}:${MAIN}"
+    try_no_blanks "git" "up" "push trunk" push origin "${INTEGRATION}:${INTEGRATION}"
+
+    try_no_blanks "git" "up" "push tags" push --tags
     ;;
   "down")
     shift
