@@ -714,6 +714,11 @@ function git_options {
     DATE=""
   fi
 
+  if [[ "$SHOW" == "--oneline" ]]
+  then
+    DATE=""
+  fi
+
   pre_options=($OP $DATE $COLOR $merge_flags)
 
   post_options=($SHOW $LIMIT $STAT $spec)
@@ -1196,6 +1201,35 @@ case $1 in
 
     try git "verify" "verify signatures of logs" ${pre_options[@]} --show-signature ${post_options[@]}
     ;;
+  "commit")
+    shift
+
+    vc_options $@
+    git_arguments -compact -no-color
+    git_options
+
+    if [[ ${VC_ARGS[0]} -lt 1 ]]
+    then 
+      try git "commit" "query numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
+      exit 0
+    fi
+
+    commit='none'
+
+    echo "VC_ARGS = ${VC_ARGS[@]}"
+
+    for arg in ${VC_ARGS[@]}
+    do
+      index=`echo "$arg" | sed  -e 's,^+,,g'`
+
+      list=`try_no_blanks "git" "commit" "get list of commits to select from" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
+      commit=`echo "$list" | tr -s ' ' | cut -d ' ' -f 1`
+
+      verbosity "arg is $arg index is: $index commit is $commit"
+    done
+
+    exit 0
+  ;;
   "show")
       shift
 
