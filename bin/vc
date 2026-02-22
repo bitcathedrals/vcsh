@@ -1210,59 +1210,44 @@ case $1 in
 
     if [[ ${VC_ARGS[0]} -lt 1 ]]
     then 
-      try git "commit" "query numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
+      try git "commit" "chronology numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
       exit 0
     fi
 
     commit='none'
 
-    echo "VC_ARGS = ${VC_ARGS[@]}"
-
     for arg in ${VC_ARGS[@]}
     do
       index=`echo "$arg" | sed  -e 's,^+,,g'`
 
-      list=`try_no_blanks "git" "commit" "get list of commits to select from" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
-      commit=`echo "$list" | tr -s ' ' | cut -d ' ' -f 1`
-
-      verbosity "arg is $arg index is: $index commit is $commit"
+      list=`try_no_blanks "git" "commit" "show commit $list log number" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
+      echo "$list" | tr -s ' ' | cut -d ' ' -f 1
     done
-
-    exit 0
   ;;
   "show")
-      shift
+    shift
 
-      vc_options $@
+    vc_options $@
 
-      git_arguments -compact -no-color
-      git_options
-      
-#     this is where the bug manifests in git_arguments. count is 1 but there
-#     are no elements
+    git_arguments -compact -no-color
 
-#     git_scrub_arguments
+    if [[ ${#VC_ARGS[0]} -lt 1 ]]
+    then
+      git_options "!show"
+      try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
 
-      if echo "${VC_ARGS[0]}" | grep -E '^\+'
-      then
-       index=`echo ${VC_ARGS[0]} | sed -e 's,^+,,g'`
+      exit 0
+    fi
 
-       commit=`try git "show" "show a numbered commit" ${pre_options[@]} ${post_options[@]} | sed -n -e "${index}p" | tr -s ' ' | cut -d ' ' -f 1`
+    for entry in $@
+    do
+      commit=`echo "${VC_ARGS[0]}" | sed  -e 's,^+,,g'`
 
-        verbosity "show" "commit number is: ${index} found commit id: $commit"
+      git_options "=$commit" "!show"
 
-        git_options  "=$commit" "!show"
-
-        try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
-        exit $?
-      fi
-
-      if [[ "${VC_ARGS[0]}" == "-l" ]]
-      then 
-        try git "show" "a numbered list list of commits" ${pre_options[@]} ${post_options[@]} | nl
-        exit $?
-      fi
-     ;;
+      try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
+    done
+    ;;
   "get")
     shift
 
@@ -1606,6 +1591,7 @@ modall              = update all submodules
 
 status            = show status of repository
 verify            = show log with signatures for verification
+commit            = no arg, list numbered commits, +<num> print truncated SH1
 show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
 
 history  = show commit history
