@@ -1431,8 +1431,7 @@ case $1 in
 
     case $1 in
       "idx")
-        # rollback index from HEAD, unstaging
-        # no files are damaged
+        # rollback index from HEAD, unstaging no files are damaged
         rollback_arguments=("restore" "--staged")
 
        try_no_blanks git "rb idx" "diff staged" ${pre_options[@]} --staged ${post_options}
@@ -1440,8 +1439,7 @@ case $1 in
        prompt="staged changes"
       ;;
       "wrk")
-        # rollback workarea from discarding any
-        # unstaged changes
+        # rollback work area discarding any unstaged changes
         rollback_arguments=("restore") 
 
         try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
