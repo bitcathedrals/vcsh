@@ -1238,14 +1238,12 @@ case $1 in
 
       exit 0
     fi
-
+ 
     for entry in ${VC_ARGS[@]}
     do
       commit=`echo "${entry}" | sed  -e 's,^+,,g'`
 
       git_options "=$commit" "!show"
-
-      echo "LIMIT is $LIMIT"
 
       try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
     done
