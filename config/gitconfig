@@ -1,0 +1,44 @@
+#
+# gitconfig for Mr. Mattie
+#
+
+[user]
+	name = Michael Mattie
+	email = codermattie@runbox.com
+	signingkey = 0x5428B78471A9A634!
+
+[core]
+	trustExitCode = true
+
+[commit]
+#	gpgsign = true
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = false
+
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+
+[core]
+  editor = run-emacs
+	ignoreSubmodules = dirty
+
+[diff]
+	tool = grail
+
+[merge]
+	tool = emacs
+
+[difftool "emacs"]
+#  prompt=false
+	cmd = 'run-emacs ^ "$LOCAL" "$REMOTE"'
+
+[mergetool "grail"]
+#  prompt=false
+	cmd = 'run-emacs + "$LOCAL" "$REMOTE" "$MERGED"'
