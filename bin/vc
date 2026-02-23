@@ -1219,8 +1219,8 @@ case $1 in
     for arg in ${VC_ARGS[@]}
     do
       index=`echo "$arg" | sed  -e 's,^+,,g'`
+      list=`try_no_blanks "git" "commit" "show log for commit number" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
 
-      list=`try_no_blanks "git" "commit" "show commit $list log number" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
       echo "$list" | tr -s ' ' | cut -d ' ' -f 1
     done
   ;;
@@ -1229,7 +1229,7 @@ case $1 in
 
     vc_options $@
 
-    git_arguments -compact -no-color
+    git_arguments -compact
 
     if [[ ${#VC_ARGS[0]} -lt 1 ]]
     then
@@ -1239,11 +1239,13 @@ case $1 in
       exit 0
     fi
 
-    for entry in $@
+    for entry in ${VC_ARGS[@]}
     do
-      commit=`echo "${VC_ARGS[0]}" | sed  -e 's,^+,,g'`
+      commit=`echo "${entry}" | sed  -e 's,^+,,g'`
 
       git_options "=$commit" "!show"
+
+      echo "LIMIT is $LIMIT"
 
       try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
     done
