@@ -52,7 +52,7 @@ TRACE='no'
 FILES=()
 
 #
-# vc.sh, required and overrides
+# vc.sh required and overrides
 #
 
 VC_CONFIG="vc.sh"
@@ -560,7 +560,7 @@ function git_arguments {
       continue
     fi
 
-    if [[ -f $arg ]]
+    if [[ -e $arg ]]
     then
       FILES+=($arg)
       continue
@@ -639,6 +639,12 @@ function git_options {
       continue
     fi
 
+    if [[ "$arg" == ":none" ]]
+    then
+      type="local"
+      continue
+    fi
+
     if echo "$arg" | grep -E '^=' >/dev/null 2>&1
     then
       spec=`echo $arg | sed -e s,^=,,`
@@ -679,8 +685,11 @@ function git_options {
           spec="${root}...${branch}"
         fi
       ;;
+      "local")
+        spec=""
+      ;;
       *)
-        abort "git_options" "log type not specified" "NA"
+        abort "git_options" "type not specified" "NA"
       ;;
     esac
   fi
@@ -725,7 +734,7 @@ function git_options {
 
   if [[ ${#FILES[@]} -gt 0 ]]
   then
-    post_options+=(${post_options[@]} "--follow" "--" ${FILES[@]})
+    post_options+=(${post_options[@]} "--" ${FILES[@]})
   fi
 
   verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
@@ -1424,44 +1433,37 @@ case $1 in
     shift
 
     vc_options $@
-
-    git_arguments -diff
+    git_arguments "-no-color"
 
     rollback_arguments=()
 
-    case $1 in
-      "idx")
+    case ${VC_ARGS[0]} in
+      "index")
         # rollback index from HEAD, unstaging no files are damaged
-        rollback_arguments=("restore" "--staged")
+        rollback_arguments=("--staged")
 
-       try_no_blanks git "rb idx" "diff staged" ${pre_options[@]} --staged ${post_options}
-
-       prompt="staged changes"
+        git_options "!restore" ":none"
+        prompt="staged changes"
       ;;
-      "wrk")
+      "work")
         # rollback work area discarding any unstaged changes
-        rollback_arguments=("restore") 
-
-        try_no_blanks git "rb wrk" "diff unstaged" ${pre_options[@]} ${post_options}
-
+        git_options "!restore" ":none"
         prompt="local changes"
       ;;
-      "mrg")
+      "merge")
         # rollback merge
-        rollback_arguments=("merge" "--abort")
-
-        try_no_blanks git "rb mrg" "diff staged" ${pre_options[@]} --staged ${post_options}
-
+        git_options "!merge" ":none"
+        rollback_arguments=("--abort")
         prompt="merge"
       ;;
       *)
-        abort "rb" "unknown rollback target" "NA" $1
+        abort "rb" "unknown target: \"${VC_ARGS[0]}\" choose index,work,merge" "NA"
       ;;
     esac
 
     if ask_yn "rollback $prompt"
     then
-      try "git" "rb" "rollback work area from the index" @rollback_arguments
+      try "git" "rb" "execute rollback" ${pre_options[@]} ${rollback_arguments[@]} ${post_options[@]}
     else
       abort "rb" "aborting with non \"y\" response" "NA"
     fi
