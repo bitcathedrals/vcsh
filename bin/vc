@@ -610,7 +610,6 @@ function git_options {
 
   for arg in ${ARGUMENTS[@]} $@
   do
-    debug "git_options in loop"    
     if [[ "$arg" == ":upstream" ]]
     then
       upstream='true'
@@ -654,10 +653,10 @@ function git_options {
       continue
     fi
 
-    debug "git_options bottom of the loop"
-
     OPTIONS+=$arg
   done
+
+  debug "git_options" "after loop"
 
   if [[ -z $spec ]]
   then
@@ -1432,15 +1431,14 @@ case $1 in
     vc_options $@
     git_arguments "-no-color"
 
-    debug "rb" "entering function"
+    debug "rb" "entering rb command"
 
-    case ${OPTIONS[0]} in
+    case ${ARGUMENTS[0]} in
       "index")
         # rollback index from HEAD, unstaging no files are damaged
         rollback_arguments=("--staged")
 
         git_options "!restore" ":none"
-
         prompt="staged changes"
       ;;
       "work")
