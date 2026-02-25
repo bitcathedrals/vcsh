@@ -127,26 +127,6 @@ function debug {
   echo "DEBUG ($task) ARGUMENTS = \"${ARGUMENTS[@]}\""
   echo "DEBUG ($task) OPTIONS = \"${OPTIONS[@]}\""
   echo "DEBUG FILES ($task) args = ${FILES[@]}"
-  
-  for arg in ${VC_ARGS[@]}
-  do
-    echo "DEBUG ($task) VC_ARGS is \"$arg\""
-  done
-
-  for arg in ${ARGUMENTS[@]}
-  do
-    echo "DEBUG ($task) ARGUMENTS is \"$arg\""
-  done
-
-  for arg in ${OPTIONS[@]}
-  do
-    echo "DEBUG ($task) OPTIONS is \"$arg\""
-  done
-
-  for arg in ${FILES[@]}
-  do
-    echo "DEBUG FILE is \"$arg\""
-  done
 }
 
 #
@@ -512,7 +492,7 @@ function git_arguments {
   DIFF="no"
   TOOL="no"
 
-  debug "git_arguments" "at beginnig"
+  debug "git_arguments" "beginning of function"
 
   for arg in ${VC_ARGS[@]} $@
   do
@@ -626,10 +606,11 @@ function git_options {
 
   OP=''
 
-  debug "git_options" "at beginning"
+  debug "git_options" "at git_options entry point"
 
   for arg in ${ARGUMENTS[@]} $@
   do
+    debug "git_options in loop"    
     if [[ "$arg" == ":upstream" ]]
     then
       upstream='true'
@@ -1451,7 +1432,7 @@ case $1 in
     vc_options $@
     git_arguments "-no-color"
 
-    rollback_arguments=()
+    debug "rb" "entering function"
 
     case ${OPTIONS[0]} in
       "index")
