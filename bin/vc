@@ -48,7 +48,9 @@ DATE_DEFAULT="relative"
 VERBOSE='no'
 DRY='no'
 TRACE='no'
+DEBUG='no'
 
+OPTIONS=()
 FILES=()
 
 #
@@ -104,6 +106,46 @@ function ask_yn {
         YN=""
       ;;
     esac
+  done
+}
+
+#
+# debug
+#
+
+function debug {
+  if [[ "$DEBUG" == "no" ]]
+  then
+    return
+  fi    
+
+  task=$1
+  shift
+
+  echo "DEBUG ($task) INFO = \"$*\""
+  echo "DEBUG ($task) VC_ARGS = \"${VC_ARGS[@]}\""
+  echo "DEBUG ($task) ARGUMENTS = \"${ARGUMENTS[@]}\""
+  echo "DEBUG ($task) OPTIONS = \"${OPTIONS[@]}\""
+  echo "DEBUG FILES ($task) args = ${FILES[@]}"
+  
+  for arg in ${VC_ARGS[@]}
+  do
+    echo "DEBUG ($task) VC_ARGS is \"$arg\""
+  done
+
+  for arg in ${ARGUMENTS[@]}
+  do
+    echo "DEBUG ($task) ARGUMENTS is \"$arg\""
+  done
+
+  for arg in ${OPTIONS[@]}
+  do
+    echo "DEBUG ($task) OPTIONS is \"$arg\""
+  done
+
+  for arg in ${FILES[@]}
+  do
+    echo "DEBUG FILE is \"$arg\""
   done
 }
 
@@ -392,7 +434,7 @@ function create_tag {
 # -v        : verbose
 # -d        : dry run
 # -t        : trace
-
+# -x        : debug
 function vc_options {
   VC_ARGS=()
 
@@ -412,6 +454,13 @@ function vc_options {
       continue
     fi
 
+    if [[ "$1" == "-x" ]]
+    then
+      DEBUG='yes'
+      shift
+      continue
+    fi
+
     if [[ "$1" == "-t" ]]
     then
       TRACE='yes'
@@ -427,44 +476,9 @@ function vc_options {
   done
 }
 
-
-function git_reset_args {
-  VC_ARGS=()
-}
-
 #
 # git_scrub_arguments
 #
-
-# sometimes we get weird VC_ARGS that are empty but the count
-# is 1. This is extremely difficult to track down without a bash
-# ultra deep dive. Its far more time effective to scrub the
-# VC_ARGS array.
-
-function git_scrub_arguments {
-  clean=()
-  count=0
-
-  for arg in ${VC_ARGS[@]}
-  do
-    count=$(($count + 1))
-
-    if echo "$arg" | grep -E '^[[:space:]]*$'
-    then
-      continue
-    fi
-
-    clean+=($arg)
-  done
-
-  if [[ $count -gt 0 ]]
-  then
-    VC_ARGS=${clean[@]}
-    return
-  fi
-
-  VC_ARGS=()
-}
 
 #
 # git_arguments - process CLI arguments for git_options
@@ -490,13 +504,15 @@ function git_scrub_arguments {
 # COLOR         = yes to color output
 # VERBOSE       = yes/no to enable verbosity
 function git_arguments {
-  remaining=()
+  ARGUMENTS=()
 
   SHOW=""
   STAT=""
   LIMIT=""
   DIFF="no"
   TOOL="no"
+
+  debug "git_arguments" "at beginnig"
 
   for arg in ${VC_ARGS[@]} $@
   do
@@ -562,16 +578,14 @@ function git_arguments {
 
     if [[ -e $arg ]]
     then
-      FILES+=($arg)
+      FILES+=$arg
       continue
     fi
 
-    remaining+=($arg)
+    ARGUMENTS+=$arg
   done
 
-  VC_ARGS=${remaining[@]}
-
-  git_scrub_arguments
+  debug "git_arguments" "end of git_arguments"
 }
 
 #
@@ -587,7 +601,7 @@ function git_arguments {
 # DATE             = date format
 # COLOR            = yes/no show in color
 # SHOW             = flags for output type and format
-# VC_ARGS          = remaining arguments from common option processing
+# OPTIONS          = remaining arguments from common option processing
 
 #
 # return STATUS    = 0 if succesful, 1 if there was an error
@@ -599,7 +613,7 @@ function git_arguments {
 # post_options[@]  = this array contains the options that are
 #                    at the end of a git command.
 function git_options {
-  remaining=()
+  OPTIONS=()
 
   merging='false'
   upstream="false"
@@ -612,7 +626,9 @@ function git_options {
 
   OP=''
 
-  for arg in ${VC_ARGS[@]} $@
+  debug "git_options" "at beginning"
+
+  for arg in ${ARGUMENTS[@]} $@
   do
     if [[ "$arg" == ":upstream" ]]
     then
@@ -657,12 +673,10 @@ function git_options {
       continue
     fi
 
-    remaining+=($arg)
+    debug "git_options bottom of the loop"
+
+    OPTIONS+=$arg
   done
-
-  VC_ARGS=${remaining[@]}
-
-  git_scrub_arguments
 
   if [[ -z $spec ]]
   then
@@ -736,6 +750,8 @@ function git_options {
   then
     post_options+=(${post_options[@]} "--" ${FILES[@]})
   fi
+
+  debug "git_options" "at beginning"
 
   verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
 }
@@ -984,7 +1000,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${VC_ARGS[0]}
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
@@ -1002,7 +1018,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${VC_ARGS[0]}
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
@@ -1023,7 +1039,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${VC_ARGS[0]}
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
@@ -1041,7 +1057,7 @@ case $1 in
     shift
     
     vc_options $@
-    name=${VC_ARGS[0]}
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
@@ -1071,7 +1087,7 @@ case $1 in
     shift
 
     vc_options $@
-    message=${VC_ARGS[0]}
+    message=${OPTIONS[0]}
 
     if [[ -z $message ]]
     then
@@ -1085,19 +1101,19 @@ case $1 in
 
     vc_options $@
 
-    if [[ ${#VC_ARGS[@]} -lt 2 ]]
+    if [[ ${#OPTIONS[@]} -lt 2 ]]
     then
       abort "add" "add requires 2 arguments <name> <url>" "NA"
     fi
 
-    NAME=${VC_ARGS[0]}
+    NAME=${OPTIONS[0]}
 
     if [[ -z $NAME ]]
     then
       abort "add" "vcsh add - repo name is missing." "NA"
     fi
 
-    URL=${VC_ARGS[1]}
+    URL=${OPTIONS[1]}
 
     if [[ -z $URL ]]
     then
@@ -1112,26 +1128,26 @@ case $1 in
 
     vc_options $@
 
-    if [[ ${#VC_ARGS[@]} -lt 3 ]]
+    if [[ ${#OPTIONS[@]} -lt 3 ]]
     then
       abort "track" "track requires 3 arguments <local> <remote> <branch>" "NA"
     fi
 
-    LOCAL=${VC_ARGS[0]}
+    LOCAL=${OPTIONS[0]}
 
     if [[ -z $LOCAL ]]
     then
       abort "track" "vcsh track - local branch (1) is missing." "NA"
     fi
 
-    REMOTE=${VC_ARGS[1]}
+    REMOTE=${OPTIONS[1]}
 
     if [[ -z $REMOTE ]]
     then
       abort "track" "vcsh track - remote (2) is missing." "NA"
     fi
 
-    BRANCH=${VC_ARGS[2]}
+    BRANCH=${OPTIONS[2]}
 
     if [[ -z $BRANCH ]]
     then
@@ -1146,9 +1162,9 @@ case $1 in
     vc_options $@
     git_arguments "-diff"
 
-    if [[ ${#VC_ARGS[@]} -gt 0 ]]
+    if [[ ${#OPTIONS[@]} -gt 0 ]]
     then
-      BRANCH=${VC_ARGS[0]}
+      BRANCH=${OPTIONS[0]}
       git_options "=HEAD..${BRANCH}"
     else
       git_options
@@ -1217,7 +1233,7 @@ case $1 in
     git_arguments -compact -no-color
     git_options
 
-    if [[ ${VC_ARGS[0]} -lt 1 ]]
+    if [[ ${OPTIONS[0]} -lt 1 ]]
     then 
       try git "commit" "chronology numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
       exit 0
@@ -1225,7 +1241,7 @@ case $1 in
 
     commit='none'
 
-    for arg in ${VC_ARGS[@]}
+    for arg in ${OPTIONS[@]}
     do
       index=`echo "$arg" | sed  -e 's,^+,,g'`
       list=`try_no_blanks "git" "commit" "show log for commit number" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
@@ -1240,7 +1256,7 @@ case $1 in
 
     git_arguments -compact
 
-    if [[ ${#VC_ARGS[0]} -lt 1 ]]
+    if [[ ${#OPTIONS[0]} -lt 1 ]]
     then
       git_options "!show"
       try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
@@ -1248,7 +1264,7 @@ case $1 in
       exit 0
     fi
  
-    for entry in ${VC_ARGS[@]}
+    for entry in ${OPTIONS[@]}
     do
       commit=`echo "${entry}" | sed  -e 's,^+,,g'`
 
@@ -1263,12 +1279,12 @@ case $1 in
     vc_options $@
     git_arguments -compact
 
-    if [[ ${#VC_ARGS[@]} -gt 1 ]]
+    if [[ ${#OPTIONS[@]} -gt 1 ]]
     then
       git_options
 
-      remote=${VC_ARGS[0]}
-      branch=${VC_ARGS[1]}
+      remote=${OPTIONS[0]}
+      branch=${OPTIONS[1]}
 
       try "git" "get" "fetch commits from $remote" fetch "$remote"
     else
@@ -1364,7 +1380,7 @@ case $1 in
     vc_options $@
     git_arguments
 
-    if [[ "${VC_ARGS[0]}" == "trunk" ]]
+    if [[ "${OPTIONS[0]}" == "trunk" ]]
     then
       root_to_branch norelease
       git_options "=${branch}..${root}"
@@ -1400,10 +1416,10 @@ case $1 in
 
     vc_options $@
 
-    if [[ ${#VC_ARGS[@]} -gt 0 ]]
+    if [[ ${#OPTIONS[@]} -gt 0 ]]
     then
       root=`git branch | grep '*' | cut -d ' ' -f 2`
-      branch=${VC_ARGS[0]}
+      branch=${OPTIONS[0]}
     else
       root_to_branch norelease
       try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
@@ -1437,12 +1453,13 @@ case $1 in
 
     rollback_arguments=()
 
-    case ${VC_ARGS[0]} in
+    case ${OPTIONS[0]} in
       "index")
         # rollback index from HEAD, unstaging no files are damaged
         rollback_arguments=("--staged")
 
         git_options "!restore" ":none"
+
         prompt="staged changes"
       ;;
       "work")
@@ -1457,7 +1474,7 @@ case $1 in
         prompt="merge"
       ;;
       *)
-        abort "rb" "unknown target: \"${VC_ARGS[0]}\" choose index,work,merge" "NA"
+        abort "rb" "unknown target: \"${OPTIONS[0]}\" choose index,work,merge" "NA"
       ;;
     esac
 
