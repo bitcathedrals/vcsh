@@ -1587,7 +1587,7 @@ modall              = update all submodules
 
 status            = show status of repository
 verify            = show log with signatures for verification
-commit            = no arg, list numbered commits, +<num> print truncated SH1
+commit            = no arg, list numbered commits, +<num> print truncated SHA1
 show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
 
 history  = show commit history
