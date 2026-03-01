@@ -60,22 +60,26 @@ FILES=()
 VC_CONFIG="vc.sh"
 dir=$PWD
 
-while [[ ! -e "${dir}/$VC_CONFIG" ]]
-do
-  if [[ "$dir" == "$HOME" ]]
-  then
-    break
-  fi
+function load_vc_config {
+  while [[ ! -e "${dir}/$VC_CONFIG" ]]
+  do
+    if [[ "$dir" == "$HOME" ]]
+    then
+      break
+    fi
 
-  if [[ -d "${dir}/.git" ]]
-  then
-    break
-  fi
+    if [[ -d "${dir}/.git" ]]
+    then
+      break
+    fi
 
-  dir=`dirname $dir`
-done
+    dir=`dirname $dir`
+  done
 
-test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
+  test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
+}
+
+load_vc_config
 
 DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
 
@@ -1472,29 +1476,39 @@ case $1 in
   #
 
   "check")
-    verbosity "check" "fetching new commits from remote"
-    git fetch origin develop
+    shift
 
-    echo "===> showing unmerged differences <===="
+    verbosity "check" "fetching new commits from remote"
+
+    $0 down
 
     verbosity "check" "showing unmerged differences"
 
-    git log develop..origin/develop --oneline
+    vc_options $@
 
-    echo "===> checking if working tree is dirty <==="
+    git_arguments
+
+    git_options :upstream
+
+    try git "check" "show difference with remote changes" ${pre_options[@]} ${post_options[@]}
+
+    verbosity "check" "checking if working tree is dirty"
 
     if git diff --quiet >/dev/null 2>&1
     then
-      echo "working tree clean - proceed!"
+      echo >/dev/stderr "vcsh: working tree clean - proceed!"
     else
-      echo "working tree dirty - DO NOT RELEASE"
+      echo >/dev/stderr "vcsh: working tree dirty - DO NOT RELEASE"
 
       git status
+
       exit 1
     fi
     ;;
   "start")
     shift
+
+    VERSION="$1"
 
     $0 check
 
@@ -1508,11 +1522,9 @@ case $1 in
       exit 1
     fi
 
-    VERSION="$1"
-
     echo -n "initiating git flow release start with version: $VERSION"
 
-    git flow release start $VERSION
+    git checkout -b "${RELEASE}/${VERSION}"
 
     if [[ $? -ne 0 ]]
     then
@@ -1520,15 +1532,15 @@ case $1 in
       exit 1
     fi
 
-    echo -n ">>>please edit python.sh with an updated version in 3 seconds."
+    echo -n ">>>please edit vc.sh with an updated version in 3 seconds."
     sleep 1
     echo -n "."
     sleep 1
     echo -n "."
     sleep 1
 
-    $EDITOR python.sh || exit 1
-    git add python.sh
+    $EDITOR vc.sh || exit 1
+    git add vc.sh
 
     echo ">>>re-loading vc.sh"
     source vc.sh
@@ -1538,7 +1550,7 @@ case $1 in
     # don't do a automatic commit so a release summary can be inserted
     git commit
 
-    echo "ready for release finish: please finish with vc release once you are ready"
+    echo "ready for release: finish with vc release once you are ready"
     ;;
   "release")
     git flow release finish $VERSION || exit 1
