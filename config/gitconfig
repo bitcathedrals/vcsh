@@ -30,15 +30,15 @@
 	ignoreSubmodules = dirty
 
 [diff]
-	tool = grail
+	tool = emacs
 
 [merge]
 	tool = emacs
 
 [difftool "emacs"]
 #  prompt=false
-	cmd = 'run-emacs ^ "$LOCAL" "$REMOTE"'
+	cmd = 'run-emacs' "^" "$LOCAL" "$REMOTE"
 
-[mergetool "grail"]
+[mergetool "emacs"]
 #  prompt=false
-	cmd = 'run-emacs + "$LOCAL" "$REMOTE" "$MERGED"'
+	cmd = 'run-emacs' "+" "$LOCAL" "$REMOTE" "$MERGED"
