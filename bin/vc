@@ -1395,10 +1395,10 @@ case $1 in
     shift
     vc_options $@
 
-    try_no_blanks "git" "up" "push main branch" push origin "${MAIN}:${MAIN}"
-    try_no_blanks "git" "up" "push trunk" push origin "${INTEGRATION}:${INTEGRATION}"
+    try_no_blanks "@git" "up" "push main branch" push origin "${MAIN}:${MAIN}"
+    try_no_blanks "@git" "up" "push trunk" push origin "${INTEGRATION}:${INTEGRATION}"
 
-    try_no_blanks "git" "up" "push tags" push --tags
+    try_no_blanks "@git" "up" "push tags" push --tags
     ;;
   "down")
     shift
