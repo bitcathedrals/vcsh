@@ -662,6 +662,12 @@ function git_options {
 
   debug "git_options" "after loop"
 
+
+  if [[ "$OP" == "cat-file" ]]
+  then
+    type='local'
+  fi
+
   if [[ -z $spec ]]
   then
     case $type in
@@ -726,16 +732,27 @@ function git_options {
     DATE=""
   fi
 
-  pre_options=($OP $DATE $COLOR $merge_flags)
-
-  post_options=($SHOW $LIMIT $STAT $spec)
-
-  if [[ ${#FILES[@]} -gt 0 ]]
+  if [[ "$OP" == "cat-file" ]]
   then
-    post_options+=(${post_options[@]} "--" ${FILES[@]})
+    if [[ ${#FILES[@]} -lt 1 ]]
+    then
+      error "git_options" "NA" "cat-file no file argument" "cat-file"
+    fi
+
+    pre_options=($OP "-p")
+    post_options=("${spec:-HEAD}:${FILES[0]}")
+  else
+    pre_options=($OP $DATE $COLOR $merge_flags)
+
+    post_options=($SHOW $LIMIT $STAT $spec)
+
+    if [[ ${#FILES[@]} -gt 0 ]]
+    then
+      post_options+=(${post_options[@]} "--" ${FILES[@]})
+    fi
   fi
 
-  debug "git_options" "at beginning"
+  debug "git_options" "after FILES processing"
 
   verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
 }
@@ -1393,7 +1410,7 @@ case $1 in
 
     try "git" "down" "fetch from upstream" fetch origin
 
-    try_no_blanks "git" "down" "show commits upstream" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
     shift
@@ -1422,12 +1439,38 @@ case $1 in
     shift
 
     vc_options $@
+    git_arguments
+    git_options
 
     root_to_branch norelease
 
-    verbosity "merge" "merge from ${root}"
+    verbosity "pull" "merge from ${root}"
 
     try "git" "merge" "merge no ff from: ${root}" merge --no-ff ${root}
+    ;;
+  "push")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options
+
+    root_to_branch norelease
+
+    verbosity "merge" "merge into ${root}"
+
+    try "git" "switch" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
+
+    try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+    ;;
+  "cat")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options "!cat-file"
+
+    try "git" "cat" "cat the file to stdout" ${pre_options[@]} ${post_options[@]}
     ;;
   "rb")
     shift
@@ -1626,7 +1669,9 @@ up       = push up trunk and main to remote
 down     = pull down trunk and main changes
 
 merge    = merge branch into trunk
+
 pull     = merge from trunk to branch
+push     = push changes from branch to trunk
 
 begin <name>  = start feature branch
 end <name>    = close feature branch <name>
