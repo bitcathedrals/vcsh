@@ -662,6 +662,12 @@ function git_options {
 
   debug "git_options" "after loop"
 
+
+  if [[ "$OP" == "cat-file" ]]
+  then
+    type='local'
+  fi
+
   if [[ -z $spec ]]
   then
     case $type in
@@ -726,16 +732,27 @@ function git_options {
     DATE=""
   fi
 
-  pre_options=($OP $DATE $COLOR $merge_flags)
-
-  post_options=($SHOW $LIMIT $STAT $spec)
-
-  if [[ ${#FILES[@]} -gt 0 ]]
+  if [[ "$OP" == "cat-file" ]]
   then
-    post_options+=(${post_options[@]} "--" ${FILES[@]})
+    if [[ ${#FILES[@]} -lt 1 ]]
+    then
+      error "git_options" "NA" "cat-file no file argument" "cat-file"
+    fi
+
+    pre_options=($OP "-p")
+    post_options=("${spec:-HEAD}:${FILES[0]}")
+  else
+    pre_options=($OP $DATE $COLOR $merge_flags)
+
+    post_options=($SHOW $LIMIT $STAT $spec)
+
+    if [[ ${#FILES[@]} -gt 0 ]]
+    then
+      post_options+=(${post_options[@]} "--" ${FILES[@]})
+    fi
   fi
 
-  debug "git_options" "at beginning"
+  debug "git_options" "after FILES processing"
 
   verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
 }
@@ -1428,6 +1445,15 @@ case $1 in
     verbosity "merge" "merge from ${root}"
 
     try "git" "merge" "merge no ff from: ${root}" merge --no-ff ${root}
+    ;;
+  "cat")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options "!cat-file"
+
+    try "git" "cat" "cat the file to stdout" ${pre_options[@]} ${post_options[@]}
     ;;
   "rb")
     shift
