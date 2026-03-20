@@ -53,65 +53,7 @@ DEBUG='no'
 OPTIONS=()
 FILES=()
 
-#
-# vc.sh required and overrides
-#
 
-VC_CONFIG="vc.sh"
-dir=$PWD
-
-function load_vc_config {
-  while [[ ! -e "${dir}/$VC_CONFIG" ]]
-  do
-    if [[ "$dir" == "$HOME" ]]
-    then
-      break
-    fi
-
-    if [[ -d "${dir}/.git" ]]
-    then
-      break
-    fi
-
-    dir=`dirname $dir`
-  done
-
-  test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
-}
-
-load_vc_config
-
-DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
-
-#
-# ask_yn      - ask with a prompt 
-#
-
-# prompt      - the prompt
-
-# YN          - the result of the prompt, "y" or "n"
-
-function ask_yn {
-  YN=""
-
-  while [[ -z $YN ]]
-  do
-    read -p "$1 y/n? " YN
-
-    case $YN in
-      "y")
-        return 0
-      ;;
-      "n")
-        return 1
-      ;;
-      *)
-        echo "unrecognized answer $YN please try again." >/dev/stderr 2>&1
-        YN=""
-      ;;
-    esac
-  done
-}
 
 #
 # debug
@@ -214,6 +156,71 @@ function abort {
 
   echo >/dev/stderr "vc: [${task}] abort! $exit_code $describe > \"$*\""
   exit 1
+}
+
+#
+# vc.sh required and overrides
+#
+
+VC_CONFIG="vc.sh"
+dir=$PWD
+
+function load_vc_config {
+  while [[ ! -e "${dir}/$VC_CONFIG" ]]
+  do
+    if [[ "$dir" == "$HOME" ]]
+    then
+      abort "load_vc_config" "cowardly refusing to search below HOME" "NA"
+    fi
+
+    if [[ "$dir" == "/" ]]
+    then
+      abort "load_vc_config" "practically refusing to search below /" "NA"
+    fi
+
+    if [[ -d "${dir}/.git" ]]
+    then
+      break
+    fi
+
+    dir=`dirname $dir`
+  done
+
+  test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
+}
+
+load_vc_config
+
+DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
+
+#
+# ask_yn      - ask with a prompt 
+#
+
+# prompt      - the prompt
+
+# YN          - the result of the prompt, "y" or "n"
+
+function ask_yn {
+  YN=""
+
+  while [[ -z $YN ]]
+  do
+    read -p "$1 y/n? " YN
+
+    case $YN in
+      "y")
+        return 0
+      ;;
+      "n")
+        return 1
+      ;;
+      *)
+        echo "unrecognized answer $YN please try again." >/dev/stderr 2>&1
+        YN=""
+      ;;
+    esac
+  done
 }
 
 #
