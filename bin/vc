@@ -105,6 +105,28 @@ function verbosity {
   echo >/dev/stderr "vc: [${task}] $describe $info"
 }
 
+
+#
+# info -       print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function info {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  info=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] $describe -> $info"
+}
+
 #
 # error - produce a formatted error message but do
 #         not exit
@@ -358,61 +380,52 @@ function root_to_branch {
   done
 }
 
+function beta_tag_count {
+  count=$(git tag | grep "${feature}" | wc -l)
+
+  if [[ -z $count ]]
+  then
+    BETA="1"
+  else
+    BETA=$(($count + 1))
+  fi
+}
+
 function create_tag {
+  if [[ $# -lt 3 ]]
+  then
+    abort "create_tag" "create_tag requires type,feature/version, and message arguments" "NA"
+  fi
+
   type=$1
-  message=$2
+  shift
 
-  if [[ $# -gt 0 ]]
-  then
-    type=$1
-    shift
-  else
-    abort "create_tag" "no argument given for type" "NA"
-  fi
+  identifier=$1
+  shift
 
-
-  if [[ $# -gt 0 ]]
-  then
-    feature=$1
-    shift
-  else
-    abort "create_tag" "no argument given for feature" "NA"
-  fi
-
-  if [[ $# -gt 0 ]]
-  then
-    message=$1
-    shift
-  else
-    abort "create_tag" "no argument given for message" "NA"
-  fi
+  message=$1
+  shift
 
   case $type in
     "beta")
-      if git tag | grep "${type}: ${USER}/${feature}"
-      then
-        count=$(git tag | grep "${type}-${USER}/${feature}" | wc -l)
-        count=$((count + 1))
+      beta_tag_count
 
-        TAG="${type}-${USER}/${feature}-${count} ${message}"
-      else
-        TAG="${type}-${USER}/${feature}-1 ${message}"
-      fi
+      TAG="${identifier}-${BETA}"
     ;;
     "release")
       # feature is the version in this case 
-      TAG="release-${feature} ${message}"
+      TAG="release-${identifier}"
     ;;
     *)
       abort "create_tag" "type: $type is not recognized." "NA"
     ;;
   esac
 
-  echo >/dev/stderr "tag is: $TAG with $message"
+  info "tag" "create tag" "$TAG with \"$message\""
 
   if ask_yn "create tag"
   then
-    git tag -a -m $TAG
+    try git "tag" "create a tag" tag -a "$TAG" -m "$message"
   else
     abort "create_tag" "aborted creating tag: $TAG"
   fi
@@ -1095,14 +1108,44 @@ case $1 in
     shift
 
     vc_options $@
-    message=${OPTIONS[0]}
+
+    feature=${VC_ARGS[0]}
+
+    message=${VC_ARGS[1]}
+
+
+    if [[ -z $feature ]]
+    then
+      abort "tag - version argument is missing."
+    fi
 
     if [[ -z $message ]]
     then
-      abort "beta - message argument is missing."
+      abort "tag - message argument is missing."
     fi
 
-    create_tag "beta" "$FEATURE" "$MESSAGE"
+    create_tag "beta" "$feature" "$message"
+    ;;
+  "tag")
+    shift
+
+    vc_options $@
+
+    version=${VC_ARGS[0]}
+
+    message=${VC_ARGS[1]}
+
+    if [[ -z $version ]]
+    then
+      abort "tag - version argument is missing."
+    fi
+
+    if [[ -z $message ]]
+    then
+      abort "tag - message argument is missing."
+    fi
+
+    create_tag "release" "$version" "$message"
     ;;
   "add")
     shift
