@@ -359,17 +359,19 @@ function try_no_blanks {
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
 
-  if [[ $branch == "${INTEGRATION}" ]]
+  if [[ "$branch" == "${INTEGRATION}" ]]
   then
-    if [[ $1 == "norelease" ]]
-    then
-      root="${MAIN}"
-    else
-      root=$(git tag | grep release | sort -V | tail -n 1)
-    fi
-  else
-    root="${INTEGRATION}"
+    root="${MAIN}"
+    return
   fi
+
+  if [[ "$branch" == "${MAIN}" ]]
+  then
+    root=$(git tag | grep release | sort -V | tail -n 1)
+    return
+  fi
+
+  root="${INTEGRATION}"
 
   for check in "$root" "$branch"
   do
@@ -696,7 +698,7 @@ function git_options {
         then
           spec="HEAD..@{upstream}"
         else
-          root_to_branch norelease
+          root_to_branch
           spec="${root}..${branch}"
         fi
       ;;
@@ -705,7 +707,7 @@ function git_options {
         then
           spec="HEAD...@{upstream}"
         else
-          root_to_branch norelease
+          root_to_branch
           spec="${root}...${branch}"
         fi
       ;;
@@ -1433,7 +1435,7 @@ case $1 in
 
     if [[ "${OPTIONS[0]}" == "trunk" ]]
     then
-      root_to_branch norelease
+      root_to_branch
       git_options "=${branch}..${root}"
     else
       git_options ":upstream"
@@ -1472,7 +1474,7 @@ case $1 in
       root=`git branch | grep '*' | cut -d ' ' -f 2`
       branch=${OPTIONS[0]}
     else
-      root_to_branch norelease
+      root_to_branch
       try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
     fi
 
@@ -1492,7 +1494,7 @@ case $1 in
     git_arguments
     git_options
 
-    root_to_branch norelease
+    root_to_branch
 
     verbosity "pull" "merge from ${root}"
 
@@ -1505,7 +1507,7 @@ case $1 in
     git_arguments
     git_options
 
-    root_to_branch norelease
+    root_to_branch
 
     verbosity "merge" "merge into ${root}"
 
