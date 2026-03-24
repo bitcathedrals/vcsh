@@ -1263,12 +1263,10 @@ case $1 in
       echo "$output" >/dev/stderr 2>&1
     fi
 
-    output=`try_no_blanks "@git" "status" "changes diffstat" diff --stat $color`
-    if [[ -n $output ]]
-    then
-      echo "[changes]"
-      echo "$output" >/dev/stderr 2>&1
-    fi
+    root_to_branch
+
+    echo ">>>showing commits in $branch not $root (parent)"
+    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color
     ;;
   "verify")
     shift
