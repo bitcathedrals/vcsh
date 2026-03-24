@@ -69,6 +69,7 @@ function set_editor {
   if command -v run-emacs >/dev/null 2>&1
   then
     export EDITOR=run-emacs
+    return 0
   fi
 
   if command -v emacsclient >/dev/null 2>&1
