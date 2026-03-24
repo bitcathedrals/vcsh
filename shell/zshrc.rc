@@ -95,23 +95,27 @@ function switch_system {
 
 alias status='git status'
 alias diff='git diff'
-alias stat='git diffstat'
 alias commit='git commit'
-alias ff='git pull'
-alias pull='git pull --no-ff'
-alias push='git push'
+alias ff='git pull --ff-only'
 alias add='git add'
-alias co='git checkout'
-alias branch='git branch'
-alias revert='git restore'
+alias switch='git switch'
 
 # pass files or branches
-alias ediff="git difftool"
-
 # initiate a merge
+
+alias ediff="git difftool"
 alias emerge="git mergetool"
 
-alias goto='py.sh goto'
+# vc commands
+alias goto='vc goto'
+
+# stash
+alias push='git stash push -m'
+alias pop='git stash'
+alias list='git stash list'
+alias pop='git stash pop'
+alias drop='git stash drop'
+alias apply='git stash apply'
 
 # rsync
 

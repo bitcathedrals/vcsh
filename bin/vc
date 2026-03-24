@@ -30,72 +30,771 @@ case $VCSH_SYSTEM in
   ;;
 esac
 
+#
+# default values
+#
+
+MAIN="main"
+INTEGRATION="develop"
+FEATURE="feature"
+BUGFIX="bugfix"
+RELEASE="release"
+TAG="release"
+VERSION=""
+
+DATE_ARG="--date="
+DATE_DEFAULT="relative"
+
+VERBOSE='no'
+DRY='no'
+TRACE='no'
+DEBUG='no'
+
+OPTIONS=()
+FILES=()
+
+
+
+#
+# debug
+#
+
+function debug {
+  if [[ "$DEBUG" == "no" ]]
+  then
+    return
+  fi    
+
+  task=$1
+  shift
+
+  echo "DEBUG ($task) INFO = \"$*\""
+  echo "DEBUG ($task) VC_ARGS = \"${VC_ARGS[@]}\""
+  echo "DEBUG ($task) ARGUMENTS = \"${ARGUMENTS[@]}\""
+  echo "DEBUG ($task) OPTIONS = \"${OPTIONS[@]}\""
+  echo "DEBUG FILES ($task) args = ${FILES[@]}"
+}
+
+#
+# verbosity - print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function verbosity {
+  if [[ $VERBOSE == 'no' ]]
+  then
+    return
+  fi
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  info=""
+
+  if [[ $# -gt 0 ]]
+  then
+    info="-> $*"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] $describe $info"
+}
+
+
+#
+# info -       print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function info {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  info=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] $describe -> $info"
+}
+
+#
+# error - produce a formatted error message but do
+#         not exit
+#
+
+# task        = the task that failed
+# status      = the exit status of the command that failed
+# description = description of the task that failed
+
+function error {
+  task=$1
+  shift
+
+  status=$1
+  shift
+
+  describe=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] error! (${status}) ${describe} > $*"
+}
+
+#
+# abort - print error information and exit 1
+#
+
+# task          = the task that failed
+# description   = description of what failed
+# status        = the exit status of the command that failed
+
+function abort {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  exit_code=""
+
+  if [[ $# -gt 0 ]]
+  then
+    exit_code=$1
+  fi
+
+  if [[ -n $exit_code ]]
+  then
+    exit_code="(${exit_code})"
+  fi
+
+  echo >/dev/stderr "vc: [${task}] abort! $exit_code $describe > \"$*\""
+  exit 1
+}
+
+#
+# vc.sh required and overrides
+#
+
+VC_CONFIG="vc.sh"
+dir=$PWD
+
+function load_vc_config {
+  while [[ ! -e "${dir}/$VC_CONFIG" ]]
+  do
+    if [[ "$dir" == "$HOME" ]]
+    then
+      abort "load_vc_config" "cowardly refusing to search below HOME" "NA"
+    fi
+
+    if [[ "$dir" == "/" ]]
+    then
+      abort "load_vc_config" "practically refusing to search below /" "NA"
+    fi
+
+    if [[ -d "${dir}/.git" ]]
+    then
+      break
+    fi
+
+    dir=`dirname $dir`
+  done
+
+  test -e "${dir}/${VC_CONFIG}" && source "${dir}/${VC_CONFIG}"
+}
+
+load_vc_config
+
+DATE="${DATE_ARG}${DATE:-$DATE_DEFAULT}"
+
+#
+# ask_yn      - ask with a prompt 
+#
+
+# prompt      - the prompt
+
+# YN          - the result of the prompt, "y" or "n"
+
+function ask_yn {
+  YN=""
+
+  while [[ -z $YN ]]
+  do
+    read -p "$1 y/n? " YN
+
+    case $YN in
+      "y")
+        return 0
+      ;;
+      "n")
+        return 1
+      ;;
+      *)
+        echo "unrecognized answer $YN please try again." >/dev/stderr 2>&1
+        YN=""
+      ;;
+    esac
+  done
+}
+
+#
+# try - try to execute a command with verbosity and error calls
+#       baked in.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
+function try {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  verbosity "$task" "$describe" "$command" $@
+
+  ignore='false'
+
+  if echo "$command" | grep -E '^@' >/dev/null 2>&1
+  then
+    ignore='true'
+    command=`echo $command | sed -e 's,^@,,'`
+  fi
+
+  exit_status=""
+
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $*"
+    exit_status=0
+  else
+    $command $@
+    exit_status=$?
+  fi
+
+  if [[ "$ignore" == "true" ]]
+  then
+    return $exit_status
+  fi
+
+  if [[ $exit_status -gt 0 ]]
+  then
+    error "$task" $exit_status "$describe" "$command" $@
+  fi
+
+  return $exit_status
+}
+
+#
+# try_no_blanks - try to execute a command with verbosity 
+#                 and error calls baked in. also filters
+#                 out blank lines.
+#
+
+# command     = command to execute
+# task        = the task at hand
+# description = describe what is being done
+# @           = remaining args are passed to command
+
+# RETURN      = status of command
+function try_no_blanks {
+  command=$1
+  shift
+
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  ignore='false'
+
+  if echo "$command" | grep -E '^@' >/dev/null 2>&1
+  then
+    ignore='true'
+    command=`echo $command | sed -e 's,^@,,'`
+  fi
+
+  verbosity "$task" "$describe" "$command" $@
+
+  exit_status=""
+
+  if [[ "$DRY" == "yes" ]]
+  then
+    echo "dry run [$task]: $command $* | grep -v -E \'^$\'"
+    exit_status=0
+  else
+    $command $@ | grep -v -E '^$'
+    exit_status=$?
+  fi
+
+  if [[ "$ignore" == "true" ]]
+  then
+    return $exit_status
+  fi
+
+  if [[ $exit_status -gt 0 ]]
+  then
+    error "$task" $exit_status "$describe" "$command" $@
+  fi
+
+  return $exit_status
+}
+
 function root_to_branch {
   branch=$(git branch | grep '*' | cut -d ' ' -f 2)
 
-  if [[ $branch == "develop" ]]
+  if [[ "$branch" == "${INTEGRATION}" ]]
   then
-    if [[ $1 == "norelease" ]]
+    root="${MAIN}"
+    return
+  fi
+
+  if [[ "$branch" == "${MAIN}" ]]
+  then
+    root=$(git tag | grep release | sort -V | tail -n 1)
+    return
+  fi
+
+  root="${INTEGRATION}"
+
+  for check in "$root" "$branch"
+  do
+    if ! git branch | grep "$check" >/dev/null 2>&1
     then
-      root="main"
-    else
-      root=$(git tag | grep release | sort -V | tail -n 1)
+      error "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
     fi
+  done
+}
+
+function beta_tag_count {
+  count=$(git tag | grep "${feature}" | wc -l)
+
+  if [[ -z $count ]]
+  then
+    BETA="1"
   else
-    root='develop'
+    BETA=$(($count + 1))
   fi
 }
 
 function create_tag {
-  TYPE=$1
-
-  FEATURE=$2
-
-  if [[ -z $FEATURE ]]
+  if [[ $# -lt 3 ]]
   then
-    echo "tag-${TYPE} requires the feature as the first argument"
+    abort "create_tag" "create_tag requires type,feature/version, and message arguments" "NA"
   fi
 
-  MESSAGE=$3
+  type=$1
+  shift
 
-  if [[ -z $MESSAGE ]]
+  identifier=$1
+  shift
+
+  message=$1
+  shift
+
+  case $type in
+    "beta")
+      beta_tag_count
+
+      TAG="${identifier}-${BETA}"
+    ;;
+    "release")
+      # feature is the version in this case 
+      TAG="release-${identifier}"
+    ;;
+    *)
+      abort "create_tag" "type: $type is not recognized." "NA"
+    ;;
+  esac
+
+  info "tag" "create tag" "$TAG with \"$message\""
+
+  if ask_yn "create tag"
   then
-    echo "tag-${TYPE} requires description as the second argument"
-  fi
-
-  if git tag | grep "${TYPE}-${USER}/${FEATURE}"
-  then
-    COUNT=$(git tag | grep "${TYPE}-${USER}/${FEATURE}" | wc -l)
-
-    COUNT=$((COUNT + 1))
-
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(${COUNT})"
+    try git "tag" "create a tag" tag -a "$TAG" -m "$message"
   else
-    TAG_NAME="${TYPE}-${USER}/${FEATURE}(1)"
-  fi
-
-  echo "tag name is: $TAG_NAME"
-
-  read -p "create tag? [y/n]: " choice
-
-  if [[ $choice == "y" ]]
-  then
-    git tag -a $TAG_NAME -m $MESSAGE
-  else
-    echo "tag-alpha: aborting!"
-    exit 1
+    abort "create_tag" "aborted creating tag: $TAG"
   fi
 }
 
-function get_last_commit_type {
-  if [[ $1 == "release" ]]
+#
+# vc_options
+#
+
+# -v        : verbose
+# -d        : dry run
+# -t        : trace
+# -x        : debug
+function vc_options {
+  VC_ARGS=()
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "-v" ]]
+    then
+      VERBOSE='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-d" ]]
+    then
+      DRY='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-x" ]]
+    then
+      DEBUG='yes'
+      shift
+      continue
+    fi
+
+    if [[ "$1" == "-t" ]]
+    then
+      TRACE='yes'
+
+      set -x 
+
+      shift
+      continue
+    fi
+
+    VC_ARGS+=("$1")
+    shift
+  done
+}
+
+#
+# git_scrub_arguments
+#
+
+#
+# git_arguments - process CLI arguments for git_options
+#
+
+# -compact      = show oneline compact form
+# -stat         = show diffstat output
+# -graph        = show graph of commit history
+# -details      = show branch details in log output
+# -decorate     = decorate history with branch information
+# -color        = color history output
+# -no-color     = don't color history output
+# -v            = verbose
+# -<n>          = limit number of entries returned
+# -diff         = use a diff operation
+# -emacs        = use emacs as a difftool or mergetool
+# return
+
+# LIMIT         = count of how many elements to limit output to.
+# SHOW          = git flag to specify output type
+# STAT          = git 
+# DIFF          = yes if showing diff instead of logs
+# COLOR         = yes to color output
+# VERBOSE       = yes/no to enable verbosity
+function git_arguments {
+  ARGUMENTS=()
+
+  SHOW=""
+  STAT=""
+  LIMIT=""
+  DIFF="no"
+  TOOL="no"
+
+  debug "git_arguments" "beginning of function"
+
+  for arg in ${VC_ARGS[@]} $@
+  do
+    if [[ "$arg" == "-v" ]]
+    then
+      VERBOSE='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-stat" ]]
+    then
+      STAT="--stat"
+      continue
+    fi
+
+    if [[ "$arg" == "-color" ]]
+    then
+      COLOR='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-no-color" ]]
+    then
+      COLOR='no'
+      continue
+    fi
+
+    if echo "$arg" | grep -E "^[[:digit:]]" >/dev/null 2>&1
+    then
+      LIMIT="-${arg}"
+      continue
+    fi
+
+    if [[ "$arg" == "-diff" ]]
+    then
+      DIFF='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-tool" ]]
+    then
+      TOOL='yes'
+      continue
+    fi
+
+    if [[ "$arg" == "-compact" ]]
+    then
+      SHOW="--oneline"
+      continue
+    fi
+
+    if [[ "$arg" == "-details" ]]
+    then
+      SHOW="--pretty=fuller"
+      continue
+    fi
+
+    if [[ "$arg" == "-graph" ]]
+    then
+      SHOW="--graph"
+      continue
+    fi
+
+    if [[ -e $arg ]]
+    then
+      FILES+=$arg
+      continue
+    fi
+
+    ARGUMENTS+=$arg
+  done
+
+  debug "git_arguments" "end of git_arguments"
+}
+
+#
+# git_options
+#
+
+# :custom          = <branch>...?<trunk> or <trunk>...?<branch>
+# :upstream        = execute against upstream branch
+# :no-merges       = do not show merges
+# :only-merges     = only show merges
+# :merge           = use ... spec to show changes not in <trunk> and <branch>
+
+# DATE             = date format
+# COLOR            = yes/no show in color
+# SHOW             = flags for output type and format
+# OPTIONS          = remaining arguments from common option processing
+
+#
+# return STATUS    = 0 if succesful, 1 if there was an error
+#
+
+# pre_options[@]   = this array contains the options that follow
+#                    a git command, but before inserted options
+#                    and post_options
+# post_options[@]  = this array contains the options that are
+#                    at the end of a git command.
+function git_options {
+  OPTIONS=()
+
+  merging='false'
+  upstream="false"
+
+  merge_flags=()
+
+  spec=""
+
+  type="changes"
+
+  OP=''
+
+  debug "git_options" "at git_options entry point"
+
+  for arg in ${ARGUMENTS[@]} $@
+  do
+    if [[ "$arg" == ":upstream" ]]
+    then
+      upstream='true'
+      continue
+    fi
+
+    if [[ "$arg" == ":no-merges" ]]
+    then
+      merge_flags=("--first-parent")
+      continue
+    fi
+
+    if [[ "$arg" == ":only-merges" ]]
+    then
+      merging='true'
+      merge_flags=("--merges")
+      continue
+    fi
+
+    if [[ "$arg" == ":merge" ]]
+    then
+      merging='true'
+      continue
+    fi
+
+    if [[ "$arg" == ":none" ]]
+    then
+      type="local"
+      continue
+    fi
+
+    if echo "$arg" | grep -E '^=' >/dev/null 2>&1
+    then
+      spec=`echo $arg | sed -e s,^=,,`
+      continue
+    fi
+
+    if echo "$arg" | grep -E '^!' >/dev/null 2>&1
+    then
+      OP=`echo $arg | sed -e s,^!,,`
+      continue
+    fi
+
+    OPTIONS+=$arg
+  done
+
+  debug "git_options" "after loop"
+
+
+  if [[ "$OP" == "cat-file" ]]
   then
-    last=`git tag | grep release | sort -V | tail -n 1`
-    git log --oneline "${last}..develop" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
-  else
-    root_to_branch
-    git log --oneline "${root}..${branch}" | cut -d ' ' -f 2- | grep -E "^\(${2}\)"
+    type='local'
   fi
+
+  if [[ -z $spec ]]
+  then
+    case $type in
+      "changes")
+        if [[ "$upstream" == 'true' ]]
+        then
+          spec="HEAD..@{upstream}"
+        else
+          root_to_branch
+          spec="${root}..${branch}"
+        fi
+      ;;
+      "merging")
+        if [[ "$upstream" == 'true' ]]
+        then
+          spec="HEAD...@{upstream}"
+        else
+          root_to_branch
+          spec="${root}...${branch}"
+        fi
+      ;;
+      "local")
+        spec=""
+      ;;
+      *)
+        abort "git_options" "type not specified" "NA"
+      ;;
+    esac
+  fi
+
+  case $COLOR in
+    "yes")
+      COLOR="--color"
+    ;;
+    "no")
+      COLOR=""
+    ;;
+  esac
+
+  if [[ -z $OP ]]
+  then
+    OP="log"
+
+    if [[ "$DIFF" == 'yes' ]]
+    then
+      OP="diff"
+    fi
+
+    if [[ "$TOOL" == 'yes' ]]
+    then
+      OP="difftool"
+    fi
+  fi
+
+  if [[ "$OP" != "log" ]]
+  then
+    DATE=""
+  fi
+
+  if [[ "$SHOW" == "--oneline" ]]
+  then
+    DATE=""
+  fi
+
+  if [[ "$OP" == "cat-file" ]]
+  then
+    if [[ ${#FILES[@]} -lt 1 ]]
+    then
+      error "git_options" "NA" "cat-file no file argument" "cat-file"
+    fi
+
+    pre_options=($OP "-p")
+    post_options=("${spec:-HEAD}:${FILES[0]}")
+  else
+    pre_options=($OP $DATE $COLOR $merge_flags)
+
+    post_options=($SHOW $LIMIT $STAT $spec)
+
+    if [[ ${#FILES[@]} -gt 0 ]]
+    then
+      post_options+=(${post_options[@]} "--" ${FILES[@]})
+    fi
+  fi
+
+  debug "git_options" "after FILES processing"
+
+  verbosity "git_options" "generated options" ${pre_options[@]} ${post_options[@]}
+}
+
+#
+# semantic_commits
+#
+
+# type   = release|main
+# filter = semantic tag to filter by
+
+function semantic_commits {
+  git_options :no-merges
+
+  REPORT=`try "git" "semantic_commits" "get list of commits" ${pre_options[@]} ${post_options[@]}`
+}
+
+function get_semantics {
+  filter=$1;
+  echo "$REPORT" | grep $filter | tr -s ' ' | cut -d ' ' -f 2-
 }
 
 function print_report {
@@ -153,15 +852,15 @@ MESSAGE
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
-    echo >/dev/stderr "vcsh: replaced .zshrc with upstream version"
+    verbosity "tools-zshrc" "replaced .zshrc with current version"
     ;;
   "tools-custom")
     cp "${VCSH_SHELL}/zshrc.custom" $HOME/.zshrc.custom
-    echo >/dev/stderr "vcsh: replaced .zshrc.custom with upstream version"
+    verbosity "tools-custom" "replaced .zshrc.custom with current version"
     ;;
   "tools-prompt")
     cp "${VCSH_SHELL}/zshrc.prompt" $HOME/.zshrc.prompt
-    echo >/dev/stderr "vcsh: installed prompt with pyenv and github support"
+    verbosity "tools-prompt" "replaced prompt with current version"
     ;;
 
   "tools-brew-init")
@@ -204,16 +903,6 @@ case $1 in
     $VCSH_ARCH_COMMAND brew install $*
   ;;
 
-  "dependencies-python")
-    DEPS="gnutls openssl readline ncurses gcc autoconf automake libtool pkg-config gettext"
-
-    eval $(${DEP_BREW}bin/brew shellenv)
-
-    OPENSSL=$(${DEP_BREW}bin/brew --prefix openssl)
-
-    $VCSH_ARCH_COMMAND brew install $DEPS
-  ;;
-
   #
   # modules
   #
@@ -226,8 +915,7 @@ case $1 in
 
     if [[ -z "$1" || -z "$2" || -z "$3" ]]
     then
-      echo "vcsh: add submodule command requires <repo> <branch> <local>"
-      exit 1
+      abort "modadd" "submodule command requires <repo> <branch> <local>" "NA"
     fi
 
     if git submodule add -b $2 $1 $3
@@ -313,298 +1001,613 @@ case $1 in
 
   "begin")
     shift
+
+    vc_options $@
     name=$1
 
     if [[ -z $name ]]
     then
-      echo "vcsh begin: requires a name for a new feature branch as an argument"
-      exit 1
+      abort "begin" "name required for a new feature branch" "NA"
     fi
 
-    git flow feature start $name
-    ;;
+    try git "begin" "checkout the feature branch" checkout -b "${FEATURE}/${name}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "begin" "error creating feature branch $name" "NA"
+    fi
+
+    verbosity "begin" "new feature branch \"$name\""
+   ;;
   "end")
     shift
-    name=$1
+
+    vc_options $@
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh end: requires the name of the feature branch to close"
-      exit 1
+      abort "end" "name of branch missing" "NA"
     fi
 
-    git flow feature finish $name
-    ;;
+    if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
+    then
+      abort "end" "feature branch ${name} not found" "NA"
+    fi
 
-  "features")
-    git flow feature
+    $0 merge
     ;;
-
   "bug")
     shift
-    name=$1
+
+    vc_options $@
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh bug: requires a name for a new bug branch as an argument"
+      abort "bug" "name of the bugfix branch to open is missing." "NA"
       exit 1
     fi
 
-    git flow bugfix start "$name"
+    try git "bug" "checkout the bugfix branch" checkout -b "${BUGFIX}/${name}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "bug" "error creating bugfix branch $name" "NA"
+    fi
+
+    verbosity "bug" "new bugfix branch \"$name\""
     ;;
   "close")
     shift
-    name=$1
+
+    vc_options $@
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh close: requires the name of the bugfix branch to close"
-      exit 1
+      abort "end" "name of branch missing" "NA"
     fi
 
-    git flow bugfix finish $name
+    if ! git branch | grep "${BUGFIX}/${name}" >/dev/null 2>&1
+    then
+      abort "end" "bug branch ${name} not found" "NA"
+    fi
+
+    $0 merge
     ;;
-
-  "bugfixes")
-    git checkout "bugfix/$name"
-    ;;    
-
   "goto")
     shift
-    name=$1
+    
+    vc_options $@
+    name=${OPTIONS[0]}
 
     if [[ -z $name ]]
     then
-      echo "vcsh goto: requires the name of the bug or feature branch as an argument"
-      exit 1
+      abort "goto" "name of the bug or feature branch required" "NA"
     fi
 
-    if [[ "$name" == "develop" || "$name" == "main" ]]
+    if [[ "$name" == "$INTEGRATION" || "$name" == "$MAIN" ]]
     then
       exec git checkout "$name"
     fi
 
-    if git flow feature | grep "$name" >/dev/null 2>&1
+    if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
-      echo "vc checking out feature: $name" >/dev/stderr
+      verbosity "goto" "checking out feature: $name"
       exec git checkout "feature/${name}"
     fi
 
-    if git flow bugfix | grep "$name" >/dev/null 2>&1
+    if git branch bugfix | grep "$name" >/dev/null 2>&1
     then
-      echo "vc checking out bugfix: $name" >/dev/stderr
+      verbosity "goto" "checking out bugfix: $name"
       exec git checkout "bugfix/${name}"
     fi
 
-    echo "vcsh goto: \"$name\" not found in features or bugfixes"
-    exit 1
+    abort "goto" "\"$name\" not found in features or bugfixes" "NA"
     ;;    
-
   "beta")
     shift
 
-    FEATURE=$1
+    vc_options $@
 
-    if [[ -z $FEATURE ]]
+    feature=${VC_ARGS[0]}
+
+    message=${VC_ARGS[1]}
+
+
+    if [[ -z $feature ]]
     then
-      echo >/dev/stderr "vcsh: tag-beta - a feature argument (1) is missing"
-      exit 1
+      abort "tag - version argument is missing."
     fi
 
-    MESSAGE=$2
-
-    if [[ -z $MESSAGE ]]
+    if [[ -z $message ]]
     then
-      echo >/dev/stderr "vcsh tag-beta - a messsage argument (2) is missing."
-      exit 1
+      abort "tag - message argument is missing."
     fi
 
-    create_tag "beta" "$FEATURE" "$MESSAGE"
+    create_tag "beta" "$feature" "$message"
     ;;
+  "tag")
+    shift
+
+    vc_options $@
+
+    version=${VC_ARGS[0]}
+
+    message=${VC_ARGS[1]}
+
+    if [[ -z $version ]]
+    then
+      abort "tag - version argument is missing."
+    fi
+
+    if [[ -z $message ]]
+    then
+      abort "tag - message argument is missing."
+    fi
+
+    create_tag "release" "$version" "$message"
+    ;;
+  "add")
+    shift
+
+    vc_options $@
+
+    if [[ ${#OPTIONS[@]} -lt 2 ]]
+    then
+      abort "add" "add requires 2 arguments <name> <url>" "NA"
+    fi
+
+    NAME=${OPTIONS[0]}
+
+    if [[ -z $NAME ]]
+    then
+      abort "add" "vcsh add - repo name is missing." "NA"
+    fi
+
+    URL=${OPTIONS[1]}
+
+    if [[ -z $URL ]]
+    then
+      abort "add" "vcsh add - repo URL is missing." "NA"
+    fi
+
+    try git "add" "add a new remote" remote add "$NAME" "$URL"
+    try git "add" "fetch from remote" fetch "$NAME"
+  ;;
   "track")
     shift
 
-    REMOTE=$1
+    vc_options $@
+
+    if [[ ${#OPTIONS[@]} -lt 3 ]]
+    then
+      abort "track" "track requires 3 arguments <local> <remote> <branch>" "NA"
+    fi
+
+    LOCAL=${OPTIONS[0]}
+
+    if [[ -z $LOCAL ]]
+    then
+      abort "track" "vcsh track - local branch (1) is missing." "NA"
+    fi
+
+    REMOTE=${OPTIONS[1]}
 
     if [[ -z $REMOTE ]]
     then
-      echo >/dev/stderr "vcsh: track - a remote (1) is missing"
-      exit 1
+      abort "track" "vcsh track - remote (2) is missing." "NA"
     fi
 
-    BRANCH=$2
+    BRANCH=${OPTIONS[2]}
 
     if [[ -z $BRANCH ]]
     then
-      echo >/dev/stderr "vcsh track - a branch (2) is missing."
-      exit 1
+      abort "track" "vcsh track - branch (3) is missing." "NA"
     fi
 
-    git branch -u $REMOTE/$BRANCH
+    try git "track" "track a new remote branch" checkout -b $LOCAL $REMOTE/$BRANCH
     ;;
-  "release-report")
-    features=`get_last_commit_type release feat`
-    bugs=`get_last_commit_type release bug`
-    issues=`get_last_commit_type release issue`
-    syncs=`get_last_commit_type release sync`
-    fixes=`get_last_commit_type release fix`
-    refactor=`get_last_commit_type release refactor`
-
-    print_report
-    ;;
-  "status-report")
-    features=`get_last_commit_type status feat`
-    bugs=`get_last_commit_type status bug`
-    issues=`get_last_commit_type status issue`
-    syncs=`get_last_commit_type status sync`
-    fixes=`get_last_commit_type status fix`
-    refactor=`get_last_commit_type status refactor`
-
-    print_report
-    ;;
-  "info")
-    git branch -vv
-
-    echo "[staged]"
-    git diff --staged | diffstat
-
-    echo "[changes]"
-    git diff | diffstat
-
-    echo "[untracked]"
-    git ls-files -o --exclude-standard
-    ;;
-  "verify")
-    exec git log --show-signature $@
-    ;;
-  "since")
+  "diff")
     shift
 
-    from=$1
+    vc_options $@
+    git_arguments "-diff"
+
+    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    then
+      BRANCH=${OPTIONS[0]}
+      git_options "=HEAD..${BRANCH}"
+    else
+      git_options
+    fi
+
+    try "git" "diff" "diff against parent or given branch" ${pre_options[@]} ${post_options[@]}
+  ;;
+  "report")
     shift
 
-    exec git log --since "$from" $@
+    vc_options $@
+    git_arguments
+
+    semantic_commits
+
+    features=`get_semantics feat`
+    fixes=`get_semantics fix`
+    bugs=`get_semantics bug`
+    issues=`get_semantics issue`
+    syncs=`get_semantics sync`
+    refactor=`get_semantics refactor`
+
+    print_report
     ;;
   "status")
-    git status
-    git submodule foreach 'git status'
-    git diff --stat
-    ;;
-  "fetch")
-    git fetch
-    git fetch origin main
-    git fetch origin develop
-    ;;
-  "pull")
-    git pull --no-ff
-    ;;
-  "staged")
-    git diff --cached
-    ;;
-  "summary")
-    root_to_branch
+    shift
 
-    echo ">>>showing summary between $root and $branch"
-    git diff "${root}..${branch}" --stat
-    ;;
-  "delta")
-    root_to_branch
+    vc_options $@
 
-    echo ">>>showing delta between $root and $branch"
-    git diff "${root}..${branch}"
-    ;;
-  "preview")
-    root_to_branch
+    try_no_blanks git "status:branches" "git banch" branch -vv $color
 
-    echo ">>>showing delta of not in either root or branch"
-    git diff "${root}...${branch}"
-    ;;
-  "merges")
-    git log --merges --oneline
-    ;;
-  "releases")
-    git tag | grep release | sort -V
-    ;;
-  "history")
-    echo ">>>showing history"
-    git log --oneline
-    ;;
-  "ahead")
+    output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
+    if [[ -n $output ]]
+    then
+      echo "[untracked]" >/dev/stderr 2>&1
+      echo "$output" >/dev/stderr 2>&1
+    fi
+      
+    output=`try_no_blanks "@git" "status" "diff staged" diff --staged --stat $color`
+    if [[ -n $output ]]
+    then
+      echo "[staged]"
+      echo "$output" >/dev/stderr 2>&1
+    fi
+
     root_to_branch
 
     echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}..${branch}" --oneline
+    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color
     ;;
-  "behind")
-    root_to_branch
+  "verify")
+    shift
 
-    echo ">>>showing commits in $root (parent) not $branch"
-    git log "${branch}..${root}" --oneline
+    vc_options $@
+    git_arguments
+    git_options
+
+    try git "verify" "verify signatures of logs" ${pre_options[@]} --show-signature ${post_options[@]}
+    ;;
+  "commit")
+    shift
+
+    vc_options $@
+    git_arguments -compact -no-color
+    git_options
+
+    if [[ ${OPTIONS[0]} -lt 1 ]]
+    then 
+      try git "commit" "chronology numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
+      exit 0
+    fi
+
+    commit='none'
+
+    for arg in ${OPTIONS[@]}
+    do
+      index=`echo "$arg" | sed  -e 's,^+,,g'`
+      list=`try_no_blanks "git" "commit" "show log for commit number" ${pre_options[@]} ${post_options[@]} | head -n $index | tail -n 1`
+
+      echo "$list" | tr -s ' ' | cut -d ' ' -f 1
+    done
+  ;;
+  "show")
+    shift
+
+    vc_options $@
+
+    git_arguments -compact
+
+    if [[ ${#OPTIONS[0]} -lt 1 ]]
+    then
+      git_options "!show"
+      try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
+
+      exit 0
+    fi
+ 
+    for entry in ${OPTIONS[@]}
+    do
+      commit=`echo "${entry}" | sed  -e 's,^+,,g'`
+
+      git_options "=$commit" "!show"
+
+      try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
+    done
+    ;;
+  "get")
+    shift
+
+    vc_options $@
+    git_arguments -compact
+
+    if [[ ${#OPTIONS[@]} -gt 1 ]]
+    then
+      git_options
+
+      remote=${OPTIONS[0]}
+      branch=${OPTIONS[1]}
+
+      try "git" "get" "fetch commits from $remote" fetch "$remote"
+    else
+      git_options ":upstream"
+
+      current=`git branch | grep '\*' | cut -d ' ' -f 2`
+
+      remote=`git config branch.${current}.remote`
+      branch=`git config branch.${current}.merge | sed -e s,^.*/,,g`
+
+      try "git" "get" "fetch commits from default remote" fetch
+    fi
+      
+    try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "get" "no commits upstream" "NA"
+    fi
+
+    if ! ask_yn "merge upstream changes into current branch"
+    then
+      exit 0
+    fi
+     
+    $0 merge "${remote}/${branch}"
+    ;;
+  "patch")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options
+
+    try git "patch" "generate patch (git diff)" diff -p --no-color | sed -e 's,^--- [ab]/,--- ,' | sed -e 's,^+++ [ab]/,+++ ,'
     ;;
   "pending")
-    root_to_branch
+    shift
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    git log "${root}...${branch}" --oneline
+    vc_options $@
+    git_arguments
+    git_options
+
+    try_no_blanks "git" "pending" "show work not in root" ${pre_options[@]} ${post_options[@]}
+    exit $?
     ;;
-  "graph")
-    root_to_branch
+  "list")
+    shift
 
-    echo ">>>showing history between $root and $branch"
-    git log "${root}..${branch}" --oneline --graph --decorate --all
+    vc_options $@
+    git_arguments
+
+    case $1 in
+      "merges")
+        git_options ":only-merges"
+        try_no_blanks "git" "list" "log of merges only" ${pre_options[@]} ${post_options[@]}
+      ;;
+      "releases")
+        try_no_blanks "git" "list" "log of merges only" tag | grep release | sort -V | grep -v -E '^$'
+      ;;
+      "bugfixes")
+        try_no_blanks git "list" "list of branches filtered for BUGFIX" branch | grep "${BUGFIX}"
+      ;;    
+      "features")
+        try_no_blanks git "list" "list of branches filtered for FEATURE" branch | grep "${FEATURE}"
+      ;;
+      *)
+        abort "list" "list type argument missing" "NA"
+      ;;
+    esac
     ;;
-  "upstream")
-    root_to_branch norelease
+  "history")
+    shift
 
-    git fetch origin main
-    git fetch origin develop
+    vc_options $@
+    git_arguments
+    git_options
 
-    echo ">>>showing upstream changes from: ${root}->${branch}"
-    git log --no-merges ${root} ^${branch} --oneline
+    try_no_blanks "git" "history" "show commits on current branch" ${pre_options[@]} ${post_options[@]}
     ;;
-  "sync")
-    root_to_branch norelease
+  "ahead")
+    shift
 
-    echo ">>>syncing from: ${root}->${branch}"
+    vc_options $@
+    git_arguments
+    git_options
 
-    git merge --no-ff --stat ${root}
+    try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
     ;;
+  "behind")
+    shift
 
-  #
-  # release environment
-  #
-  "check")
-    echo "===> remember to pull deps with update if warranted <==="
+    vc_options $@
+    git_arguments
 
-    echo "===> fetching new commits from remote <==="
-    git fetch origin develop
-
-    echo "===> showing unmerged differences <===="
-
-    git log develop..origin/develop --oneline
-
-    echo "===> checking if working tree is dirty <==="
-
-    if git diff --quiet
+    if [[ "${OPTIONS[0]}" == "trunk" ]]
     then
-      echo "working tree clean - proceed!"
+      root_to_branch
+      git_options "=${branch}..${root}"
     else
-      echo "working tree dirty - DO NOT RELEASE"
+      git_options ":upstream"
+    fi
+
+    try_no_blanks "@git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
+    ;;
+  "up")
+    shift
+    vc_options $@
+
+    try_no_blanks "@git" "up" "push main branch" push origin "${MAIN}:${MAIN}"
+    try_no_blanks "@git" "up" "push trunk" push origin "${INTEGRATION}:${INTEGRATION}"
+
+    try_no_blanks "@git" "up" "push tags" push --tags
+    ;;
+  "down")
+    shift
+
+    vc_options $@
+
+    git_arguments
+    git_options
+
+    try "git" "down" "fetch from upstream" fetch origin
+
+    try_no_blanks "git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
+    ;;
+  "merge")
+    shift
+
+    vc_options $@
+
+    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    then
+      root=`git branch | grep '*' | cut -d ' ' -f 2`
+      branch=${OPTIONS[0]}
+    else
+      root_to_branch
+      try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
+    fi
+
+    if ask_yn "merge $branch into \"$root\""
+    then
+      verbosity "merge" "merging ${branch}"
+
+      try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+    else
+      abort "merge" "answer to merge is no" "NA"
+    fi
+    ;;
+  "pull")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options
+
+    root_to_branch
+
+    verbosity "pull" "merge from ${root}"
+
+    try "git" "merge" "merge no ff from: ${root}" merge --no-ff ${root}
+    ;;
+  "push")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options
+
+    root_to_branch
+
+    verbosity "merge" "merge into ${root}"
+
+    try "git" "switch" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
+
+    try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+    ;;
+  "cat")
+    shift
+
+    vc_options $@
+    git_arguments
+    git_options "!cat-file"
+
+    try "git" "cat" "cat the file to stdout" ${pre_options[@]} ${post_options[@]}
+    ;;
+  "rb")
+    shift
+
+    vc_options $@
+    git_arguments "-no-color"
+
+    debug "rb" "entering rb command"
+
+    case ${ARGUMENTS[0]} in
+      "index")
+        # rollback index from HEAD, unstaging no files are damaged
+        rollback_arguments=("--staged")
+
+        git_options "!restore" ":none"
+        prompt="staged changes"
+      ;;
+      "work")
+        # rollback work area discarding any unstaged changes
+        git_options "!restore" ":none"
+        prompt="local changes"
+      ;;
+      "merge")
+        # rollback merge
+        git_options "!merge" ":none"
+        rollback_arguments=("--abort")
+        prompt="merge"
+      ;;
+      *)
+        abort "rb" "unknown target: \"${OPTIONS[0]}\" choose index,work,merge" "NA"
+      ;;
+    esac
+
+    $0 status
+
+    if ask_yn "rollback $prompt"
+    then
+      try "git" "rb" "execute rollback" ${pre_options[@]} ${rollback_arguments[@]} ${post_options[@]}
+    else
+      abort "rb" "aborting with non \"y\" response" "NA"
+    fi
+  ;;
+
+  #
+  # release commands
+  #
+
+  "check")
+    shift
+
+    verbosity "check" "fetching new commits from remote"
+
+    $0 down
+
+    verbosity "check" "showing unmerged differences"
+
+    vc_options $@
+
+    git_arguments
+
+    git_options :upstream
+
+    try git "check" "show difference with remote changes" ${pre_options[@]} ${post_options[@]}
+
+    verbosity "check" "checking if working tree is dirty"
+
+    if git diff --quiet >/dev/null 2>&1
+    then
+      echo >/dev/stderr "vcsh: working tree clean - proceed!"
+    else
+      echo >/dev/stderr "vcsh: working tree dirty - DO NOT RELEASE"
 
       git status
+
       exit 1
     fi
     ;;
   "start")
     shift
 
+    VERSION="$1"
+
     $0 check
 
     echo "EDITOR is: $EDITOR ... correct?"
 
-    read -p "Proceed? [y/n]: " proceed
-
-    if [[ $proceed = "y" ]]
+    if ask_yn "proceed with release"
     then
       echo ">>> proceeding with release start!"
     else
@@ -612,11 +1615,9 @@ case $1 in
       exit 1
     fi
 
-    VERSION="$1"
-
     echo -n "initiating git flow release start with version: $VERSION"
 
-    git flow release start $VERSION
+    git checkout -b "${RELEASE}/${VERSION}"
 
     if [[ $? -ne 0 ]]
     then
@@ -624,15 +1625,15 @@ case $1 in
       exit 1
     fi
 
-    echo -n ">>>please edit python.sh with an updated version in 3 seconds."
+    echo -n ">>>please edit vc.sh with an updated version in 3 seconds."
     sleep 1
     echo -n "."
     sleep 1
     echo -n "."
     sleep 1
 
-    $EDITOR python.sh || exit 1
-    git add python.sh
+    $EDITOR vc.sh || exit 1
+    git add vc.sh
 
     echo ">>>re-loading vc.sh"
     source vc.sh
@@ -642,31 +1643,12 @@ case $1 in
     # don't do a automatic commit so a release summary can be inserted
     git commit
 
-    echo "ready for release finish: please finish with vc release once you are ready"
+    echo "ready for release: finish with vc release once you are ready"
     ;;
   "release")
     git flow release finish $VERSION || exit 1
     ;;
-  "upload")
-    git push origin main:main
-    git push origin develop:develop
-
-    git push --tags
-    ;;
-  "purge")
-    for cache in $(find . -name '__pycache__' -type d -print)
-    do
-      echo "purging cache: $cache"
-      rm -r $cache
-    done
-
-    for egg in $(find . -name '*.egg-info' -type d -print)
-    do
-      echo "purging build metadata: $egg"
-      rm -r $egg
-    done
-    ;;
-  "help"|""|*)
+  "help")
     if [[ -n $2 ]]
     then
       filter="$2"
@@ -681,13 +1663,13 @@ vc
 
 [tools commands]
 
-tools-python  = install pyen and pyenv virtual from source on UNIX (call again to update)
+tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
+tools-custom        = install zshrc.custom
+tools-prompt        = install prompt support with pyeenv, git, and project in the prompt
 
-tools-zshrc   = install hombrew, pyenv, and pyenv switching commands into .zshrc
-tools-custom  = install zshrc.custom
-tools-prompt  = install prompt support with pyeenv, git, and project in the prompt
+[homebrew commands]
 
-brew-upgrade  = upgrade brew packages
+brew-upgrade        = upgrade brew packages
 
 tools-brew-init     = initialize the /opt/homebrew homebrew repository
 tools-brew-upgrade  = upgrade the /opt/homebrew repository
@@ -710,63 +1692,61 @@ modall              = update all submodules
 
 [version control]
 
-begin    <name> = start feature branch <name>
-end      <name> = close feature branch <name>
-features        = list feature branches
+status            = show status of repository
+verify            = show log with signatures for verification
+commit            = no arg, list numbered commits, +<num> print truncated SHA1
+show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
 
-bug      <name> = start a bug branch
-close    <name> = finish a bugfix merging into develop
-bugfixes <name> = list bugfix branches
+history  = show commit history
+pending  = commits not in root or branch
+ahead    = show log of commits in branch but not in parent
+behind <trunk> = show upstream or "trunk" changes not in branch
 
-goto     <name> = switch to feature or bugfix branch, searches branches
+diff <branch>  = diff against parent branch (default) 
+patch          = generate a unified diff
 
-track <1> <2>  = set upstream tracking 1=remote 2=branch
+rb       = rollback to index, work, merge
 
-beta       = <feat> <msg> = create a beta tag with the devel branch feature and message
-info       = show branches, tracking, and status
-verify     = show log with signatures for verification
-status     = git state, submodule state, diffstat for changes in tree
-since      = <DATE> pull logs since date, extra <ARGS...> are passed
-fetch      = fetch main, develop, and current branch
-pull       = pull current branch no ff
+[repository commands]
 
-[show log/diff/reports]
+add <remote> <branch>   = check out a remote branch with the same name
+get <branch> <upstream> = checkout a upstream branch
+track <local> <remote> <branch> = checkout remote branch with a local name
 
-staged     = show staged changes
-merges     = show merges only
-releases   = show releases (tags)
-history    = show commit history
+[workflow]
 
-ahead      = show log of commits in branch but not in parent
-behind     = show log of commit in parent but not branch
-summary    = show diffstat of summary between feature and develop or last release and develop
-pending    = show log of commits that are not in root or branch (to be merged)
+up       = push up trunk and main to remote
+down     = pull down trunk and main changes
 
-delta      = show diff between feature and develop or last release and develop
-preview    = show diff between root and branch that is not in both (to be merged)
+merge    = merge branch into trunk
 
-release-report  = generate a report of changes since last release
-status-report = generate a report of changes ahead of the trunk
+pull     = merge from trunk to branch
+push     = push changes from branch to trunk
 
-graph      = show history between feature and develop or last release and develop
-upstream   = show upstream changes that havent been merged yet
-sync       = merge from the root branch commits not in this branch no ff
+begin <name>  = start feature branch
+end <name>    = close feature branch <name>
+
+bug <name>    = start a bug branch
+close <close> = finish a bugfix merging into develop
+
+goto          = switch to feature or bugfix branch by name
+
+[list branches & make reports]
+
+list       = <merges|releases|features|bugfixes>
+report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-check      = fetch main, develop from origin and show log of any pending changes
-start      = initiate an EDITOR session to update VERSION in python.sh, reload config,
-             snapshot Pipfile if present, and start a git flow release with VERSION
+beta <msg>       = create a beta tag with the message
+check            = fetch main, develop, show log of any pending changes
+start <version>  = start the release process for version
+release          = execute git flow release finish with VERSION
 
-             for the first time pass version as an argument e.g: "vc start 1.0.0"
-
-release    = execute git flow release finish with VERSION
-upload     = push main and develop branches and tags to remote
-
-[misc]
-
-purge      = remove all the __pycache__ dirs
 HELP
+  ;;
+  *)
+    $0 history $@
   ;;
 esac
 
