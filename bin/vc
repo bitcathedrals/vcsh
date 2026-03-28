@@ -1374,7 +1374,7 @@ case $1 in
     git_arguments
     git_options
 
-    try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
     ;;
   "behind")
     shift
@@ -1411,7 +1411,7 @@ case $1 in
 
     try "git" "down" "fetch from upstream" fetch origin
 
-    try_no_blanks "git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
     shift
