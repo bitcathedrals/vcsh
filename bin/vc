@@ -53,7 +53,7 @@ DEBUG='no'
 OPTIONS=()
 FILES=()
 
-
+STATUS_LIMIT="-10"
 
 #
 # debug
@@ -849,6 +849,10 @@ MESSAGE
   fi
 }
 
+function current_branch {
+  current=`git branch | grep '^*' | cut -d ' ' -f 2`
+}
+
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
@@ -1216,7 +1220,7 @@ case $1 in
     root_to_branch
 
     echo ">>>showing commits in $branch not $root (parent)"
-    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color
+    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color ${STATUS_LIMIT}
     ;;
   "verify")
     shift
@@ -1291,7 +1295,7 @@ case $1 in
     else
       git_options ":upstream"
 
-      current=`git branch | grep '\*' | cut -d ' ' -f 2`
+      current_branch
 
       remote=`git config branch.${current}.remote`
       branch=`git config branch.${current}.merge | sed -e s,^.*/,,g`
@@ -1419,7 +1423,8 @@ case $1 in
 
     if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
-      root=`git branch | grep '*' | cut -d ' ' -f 2`
+      current_branch
+      root=$current
       branch=${VC_ARGS[0]}
     else
       root_to_branch
