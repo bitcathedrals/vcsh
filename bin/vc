@@ -1003,7 +1003,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=$1
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1023,7 +1023,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1041,7 +1041,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1062,7 +1062,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1080,28 +1080,39 @@ case $1 in
     shift
     
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
-      abort "goto" "name of the bug or feature branch required" "NA"
+      verbosity "goto" "defaulting to trunk: $name"
+
+      root_to_branch
+
+      name="${root}"
     fi
 
     if [[ "$name" == "$INTEGRATION" || "$name" == "$MAIN" ]]
     then
-      exec git checkout "$name"
+      verbosity "goto" "checking out trunk: $name"
+      try "git" "goto" "switch to trunk" switch "$name"
+
+      exit $?
     fi
 
     if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
       verbosity "goto" "checking out feature: $name"
-      exec git checkout "feature/${name}"
+      try "git" "goto" "switch to feature" switch "${FEATURE}/${name}"
+
+      exit $?
     fi
 
-    if git branch bugfix | grep "$name" >/dev/null 2>&1
+    if git branch | grep "${BUGFIX}/$name" >/dev/null 2>&1
     then
       verbosity "goto" "checking out bugfix: $name"
-      exec git checkout "bugfix/${name}"
+      try "git" "goto" "switch to bugfix" switch "${BUGFIX}/${name}"
+
+      echo $?
     fi
 
     abort "goto" "\"$name\" not found in features or bugfixes" "NA"
@@ -1114,7 +1125,6 @@ case $1 in
     feature=${VC_ARGS[0]}
 
     message=${VC_ARGS[1]}
-
 
     if [[ -z $feature ]]
     then
@@ -1149,76 +1159,16 @@ case $1 in
 
     create_tag "release" "$version" "$message"
     ;;
-  "add")
-    shift
-
-    vc_options $@
-
-    if [[ ${#OPTIONS[@]} -lt 2 ]]
-    then
-      abort "add" "add requires 2 arguments <name> <url>" "NA"
-    fi
-
-    NAME=${OPTIONS[0]}
-
-    if [[ -z $NAME ]]
-    then
-      abort "add" "vcsh add - repo name is missing." "NA"
-    fi
-
-    URL=${OPTIONS[1]}
-
-    if [[ -z $URL ]]
-    then
-      abort "add" "vcsh add - repo URL is missing." "NA"
-    fi
-
-    try git "add" "add a new remote" remote add "$NAME" "$URL"
-    try git "add" "fetch from remote" fetch "$NAME"
-  ;;
-  "track")
-    shift
-
-    vc_options $@
-
-    if [[ ${#OPTIONS[@]} -lt 3 ]]
-    then
-      abort "track" "track requires 3 arguments <local> <remote> <branch>" "NA"
-    fi
-
-    LOCAL=${OPTIONS[0]}
-
-    if [[ -z $LOCAL ]]
-    then
-      abort "track" "vcsh track - local branch (1) is missing." "NA"
-    fi
-
-    REMOTE=${OPTIONS[1]}
-
-    if [[ -z $REMOTE ]]
-    then
-      abort "track" "vcsh track - remote (2) is missing." "NA"
-    fi
-
-    BRANCH=${OPTIONS[2]}
-
-    if [[ -z $BRANCH ]]
-    then
-      abort "track" "vcsh track - branch (3) is missing." "NA"
-    fi
-
-    try git "track" "track a new remote branch" checkout -b $LOCAL $REMOTE/$BRANCH
-    ;;
   "diff")
     shift
 
     vc_options $@
     git_arguments "-diff"
 
-    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    if [[ ${#ARGUMENTS[@]} -gt 0 ]]
     then
-      BRANCH=${OPTIONS[0]}
-      git_options "=HEAD..${BRANCH}"
+      branch=${ARGUMENTS[0]}
+      git_options "=HEAD..${branch}"
     else
       git_options
     fi
@@ -1307,12 +1257,12 @@ case $1 in
 
     git_arguments -compact
 
-    if [[ ${#OPTIONS[0]} -lt 1 ]]
+    if [[ ${#VC_ARGS[0]} -lt 1 ]]
     then
       git_options "!show"
       try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
 
-      exit 0
+      exit $?
     fi
  
     for entry in ${OPTIONS[@]}
@@ -1330,7 +1280,7 @@ case $1 in
     vc_options $@
     git_arguments -compact
 
-    if [[ ${#OPTIONS[@]} -gt 1 ]]
+    if [[ ${#ARGUMENTS[@]} -gt 1 ]]
     then
       git_options
 
@@ -1467,10 +1417,10 @@ case $1 in
 
     vc_options $@
 
-    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
       root=`git branch | grep '*' | cut -d ' ' -f 2`
-      branch=${OPTIONS[0]}
+      branch=${VC_ARGS[0]}
     else
       root_to_branch
       try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
@@ -1489,8 +1439,6 @@ case $1 in
     shift
 
     vc_options $@
-    git_arguments
-    git_options
 
     root_to_branch
 
@@ -1502,8 +1450,6 @@ case $1 in
     shift
 
     vc_options $@
-    git_arguments
-    git_options
 
     root_to_branch
 
@@ -1709,9 +1655,7 @@ rb       = rollback to index, work, merge
 
 [repository commands]
 
-add <remote> <branch>   = check out a remote branch with the same name
 get <branch> <upstream> = checkout a upstream branch
-track <local> <remote> <branch> = checkout remote branch with a local name
 
 [workflow]
 
