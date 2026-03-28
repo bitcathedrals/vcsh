@@ -791,7 +791,7 @@ function semantic_commits {
 
 function get_semantics {
   filter=$1;
-  echo "$REPORT" | grep $filter | tr -s ' ' | cut -d ' ' -f 2-
+  echo "$REPORT" | grep -E "\(${filter}\):" | tr -s ' ' | cut -d ' ' -f 2-
 }
 
 function print_report {
