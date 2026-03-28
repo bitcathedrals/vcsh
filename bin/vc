@@ -1425,7 +1425,8 @@ case $1 in
       branch=${VC_ARGS[0]}
     else
       root_to_branch
-      try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
+
+      try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
     fi
 
     if ask_yn "merge $branch into \"$root\""
