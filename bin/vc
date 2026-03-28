@@ -844,6 +844,16 @@ MESSAGE
 $refactor
 MESSAGE
   fi
+
+  if [[ -n $refactor ]]
+  then
+    cat <<MESSAGE
+
+* dev work
+
+$dev
+MESSAGE
+  fi
 }
 
 function current_branch {
@@ -1190,6 +1200,7 @@ case $1 in
     issues=`get_semantics issue`
     syncs=`get_semantics sync`
     refactor=`get_semantics refactor`
+    dev=`get_semantics dev`
 
     print_report
     ;;
