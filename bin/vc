@@ -805,16 +805,6 @@ $features
 MESSAGE
   fi
 
-  if [[ -n $bugs ]]
-  then
-    cat <<MESSAGE
-
-* bugs
-
-$bugs
-MESSAGE
-  fi
-
   if [[ -n $fixes ]]
   then
     cat <<MESSAGE
@@ -835,6 +825,16 @@ $syncs
 MESSAGE
   fi
 
+  if [[ -n $merges ]]
+  then
+    cat <<MESSAGE
+
+* merges
+
+$merges
+MESSAGE
+  fi
+
   if [[ -n $refactor ]]
   then
     cat <<MESSAGE
@@ -845,7 +845,7 @@ $refactor
 MESSAGE
   fi
 
-  if [[ -n $refactor ]]
+  if [[ -n $dev ]]
   then
     cat <<MESSAGE
 
@@ -1196,9 +1196,8 @@ case $1 in
 
     features=`get_semantics feat`
     fixes=`get_semantics fix`
-    bugs=`get_semantics bug`
-    issues=`get_semantics issue`
     syncs=`get_semantics sync`
+    merges=`get_semantics merge`
     refactor=`get_semantics refactor`
     dev=`get_semantics dev`
 
