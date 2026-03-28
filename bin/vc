@@ -289,7 +289,7 @@ function try {
 
   if [[ "$ignore" == "true" ]]
   then
-    return $exit_status
+    return 0
   fi
 
   if [[ $exit_status -gt 0 ]]
@@ -357,27 +357,24 @@ function try_no_blanks {
 }
 
 function root_to_branch {
-  branch=$(git branch | grep '*' | cut -d ' ' -f 2)
+  current_branch
+  branch=$current
 
   if [[ "$branch" == "${INTEGRATION}" ]]
   then
     root="${MAIN}"
-    return
-  fi
-
-  if [[ "$branch" == "${MAIN}" ]]
+  elif [[ "$branch" == "${MAIN}" ]]
   then
     root=$(git tag | grep release | sort -V | tail -n 1)
-    return
+  else  
+    root="${INTEGRATION}"
   fi
-
-  root="${INTEGRATION}"
 
   for check in "$root" "$branch"
   do
     if ! git branch | grep "$check" >/dev/null 2>&1
     then
-      error "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
+      abort "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
     fi
   done
 }
@@ -1687,8 +1684,7 @@ report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-beta <msg>       = create a beta tag with the message
-check            = fetch main, develop, show log of any pending changes
+beta <msg>       = create a beta tag with the messagecheck            = fetch main, develop, show log of any pending changes
 start <version>  = start the release process for version
 release          = execute git flow release finish with VERSION
 
