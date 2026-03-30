@@ -1394,15 +1394,13 @@ case $1 in
       abort "get" "no commits upstream" "NA"
     fi
 
-    if ! ask_yn "merge upstream changes into current branch"
+    if ! ask_yn "fast forwad only?"
     then
       exit 0
     fi
      
-    $0 rebase "${remote}/${branch}"
-    ;;
-  "rebase")
-      echo "called rebase"
+    try "git" "get" "attempt to merge changes that dont collide" merge --ff-only
+    exit $?
     ;;
   "patch")
     shift
