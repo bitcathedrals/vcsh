@@ -53,7 +53,7 @@ DEBUG='no'
 OPTIONS=()
 FILES=()
 
-
+STATUS_LIMIT="10"
 
 #
 # debug
@@ -125,6 +125,28 @@ function info {
   shift
 
   echo >/dev/stderr "vc: [${task}] $describe -> $info"
+}
+
+
+#
+# warning -       print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function warning {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  warning=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] $describe -> $warning"
 }
 
 #
@@ -289,7 +311,7 @@ function try {
 
   if [[ "$ignore" == "true" ]]
   then
-    return $exit_status
+    return 0
   fi
 
   if [[ $exit_status -gt 0 ]]
@@ -357,27 +379,21 @@ function try_no_blanks {
 }
 
 function root_to_branch {
-  branch=$(git branch | grep '*' | cut -d ' ' -f 2)
-
   if [[ "$branch" == "${INTEGRATION}" ]]
   then
     root="${MAIN}"
-    return
-  fi
-
-  if [[ "$branch" == "${MAIN}" ]]
+  elif [[ "$branch" == "${MAIN}" ]]
   then
     root=$(git tag | grep release | sort -V | tail -n 1)
-    return
+  else  
+    root="${INTEGRATION}"
   fi
-
-  root="${INTEGRATION}"
 
   for check in "$root" "$branch"
   do
     if ! git branch | grep "$check" >/dev/null 2>&1
     then
-      error "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
+      abort "root_to_branch" "checking that branch exists" "$?" "branch $check required for operation"
     fi
   done
 }
@@ -794,7 +810,7 @@ function semantic_commits {
 
 function get_semantics {
   filter=$1;
-  echo "$REPORT" | grep $filter | tr -s ' ' | cut -d ' ' -f 2-
+  echo "$REPORT" | grep -E "\(${filter}\):" | tr -s ' ' | cut -d ' ' -f 2-
 }
 
 function print_report {
@@ -805,16 +821,6 @@ function print_report {
 * features
 
 $features
-MESSAGE
-  fi
-
-  if [[ -n $bugs ]]
-  then
-    cat <<MESSAGE
-
-* bugs
-
-$bugs
 MESSAGE
   fi
 
@@ -838,6 +844,16 @@ $syncs
 MESSAGE
   fi
 
+  if [[ -n $merges ]]
+  then
+    cat <<MESSAGE
+
+* merges
+
+$merges
+MESSAGE
+  fi
+
   if [[ -n $refactor ]]
   then
     cat <<MESSAGE
@@ -847,6 +863,66 @@ MESSAGE
 $refactor
 MESSAGE
   fi
+
+  if [[ -n $dev ]]
+  then
+    cat <<MESSAGE
+
+* dev work
+
+$dev
+MESSAGE
+  fi
+}
+
+function get_current_branch {
+  current_branch=`git branch | grep '*' | tr -s ' ' | cut -d ' ' -f 2`
+}
+
+function get_remote_branch {
+  if [[ $# -gt 0 ]]
+  then
+    current_branch=$1
+  else
+    get_current_branch
+  fi
+
+  remote=`git config branch.${current_branch}.remote`
+
+  if [[ -z $remote ]]
+  then
+    warning "current_branch" "get current upstream branch" "no remote"
+    return 1
+  fi
+
+  remote_branch=`git config branch.${current_branch}.merge`
+
+  if [[ -z $remote_branch ]]
+  then
+    warning "current_branch" "get current upstream branch" "no upstream branch in $remote"
+
+    return 1
+  fi
+
+  remote_branch=`echo "$remote_branch" | sed -e s,^.*/.*/,,g`
+
+  verbosity "current branch" "remote = \"${remote}\" remote branch is \"${remote_branch}\""
+
+  return 0
+}
+
+function setup_remote_branch {
+  origin=$1
+  branch=$2
+
+  current_branch=$3
+
+  if [[ -z $current_branch ]]
+  then
+    get_current_branch    
+  fi
+
+  try "git" "setup_remote_branch" "set the remote branch for the current branch" branch --set-upstream-to="${origin}/${branch}" "${current_branch}"
 }
 
 case $1 in
@@ -1003,7 +1079,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=$1
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1023,7 +1099,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1041,7 +1117,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1062,7 +1138,7 @@ case $1 in
     shift
 
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
@@ -1080,28 +1156,39 @@ case $1 in
     shift
     
     vc_options $@
-    name=${OPTIONS[0]}
+    name=${VC_ARGS[0]}
 
     if [[ -z $name ]]
     then
-      abort "goto" "name of the bug or feature branch required" "NA"
+      verbosity "goto" "defaulting to trunk: $name"
+
+      root_to_branch
+
+      name="${root}"
     fi
 
     if [[ "$name" == "$INTEGRATION" || "$name" == "$MAIN" ]]
     then
-      exec git checkout "$name"
+      verbosity "goto" "checking out trunk: $name"
+      try "git" "goto" "switch to trunk" switch "$name"
+
+      exit $?
     fi
 
     if git branch | grep "${FEATURE}/$name" >/dev/null 2>&1
     then
       verbosity "goto" "checking out feature: $name"
-      exec git checkout "feature/${name}"
+      try "git" "goto" "switch to feature" switch "${FEATURE}/${name}"
+
+      exit $?
     fi
 
-    if git branch bugfix | grep "$name" >/dev/null 2>&1
+    if git branch | grep "${BUGFIX}/$name" >/dev/null 2>&1
     then
       verbosity "goto" "checking out bugfix: $name"
-      exec git checkout "bugfix/${name}"
+      try "git" "goto" "switch to bugfix" switch "${BUGFIX}/${name}"
+
+      echo $?
     fi
 
     abort "goto" "\"$name\" not found in features or bugfixes" "NA"
@@ -1114,7 +1201,6 @@ case $1 in
     feature=${VC_ARGS[0]}
 
     message=${VC_ARGS[1]}
-
 
     if [[ -z $feature ]]
     then
@@ -1149,76 +1235,16 @@ case $1 in
 
     create_tag "release" "$version" "$message"
     ;;
-  "add")
-    shift
-
-    vc_options $@
-
-    if [[ ${#OPTIONS[@]} -lt 2 ]]
-    then
-      abort "add" "add requires 2 arguments <name> <url>" "NA"
-    fi
-
-    NAME=${OPTIONS[0]}
-
-    if [[ -z $NAME ]]
-    then
-      abort "add" "vcsh add - repo name is missing." "NA"
-    fi
-
-    URL=${OPTIONS[1]}
-
-    if [[ -z $URL ]]
-    then
-      abort "add" "vcsh add - repo URL is missing." "NA"
-    fi
-
-    try git "add" "add a new remote" remote add "$NAME" "$URL"
-    try git "add" "fetch from remote" fetch "$NAME"
-  ;;
-  "track")
-    shift
-
-    vc_options $@
-
-    if [[ ${#OPTIONS[@]} -lt 3 ]]
-    then
-      abort "track" "track requires 3 arguments <local> <remote> <branch>" "NA"
-    fi
-
-    LOCAL=${OPTIONS[0]}
-
-    if [[ -z $LOCAL ]]
-    then
-      abort "track" "vcsh track - local branch (1) is missing." "NA"
-    fi
-
-    REMOTE=${OPTIONS[1]}
-
-    if [[ -z $REMOTE ]]
-    then
-      abort "track" "vcsh track - remote (2) is missing." "NA"
-    fi
-
-    BRANCH=${OPTIONS[2]}
-
-    if [[ -z $BRANCH ]]
-    then
-      abort "track" "vcsh track - branch (3) is missing." "NA"
-    fi
-
-    try git "track" "track a new remote branch" checkout -b $LOCAL $REMOTE/$BRANCH
-    ;;
   "diff")
     shift
 
     vc_options $@
     git_arguments "-diff"
 
-    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    if [[ ${#ARGUMENTS[@]} -gt 0 ]]
     then
-      BRANCH=${OPTIONS[0]}
-      git_options "=HEAD..${BRANCH}"
+      branch=${ARGUMENTS[0]}
+      git_options "=HEAD..${branch}"
     else
       git_options
     fi
@@ -1235,10 +1261,10 @@ case $1 in
 
     features=`get_semantics feat`
     fixes=`get_semantics fix`
-    bugs=`get_semantics bug`
-    issues=`get_semantics issue`
     syncs=`get_semantics sync`
+    merges=`get_semantics merge`
     refactor=`get_semantics refactor`
+    dev=`get_semantics dev`
 
     print_report
     ;;
@@ -1246,6 +1272,15 @@ case $1 in
     shift
 
     vc_options $@
+
+    case $COLOR in
+      "yes")
+        color="--color"
+      ;;
+      "no")
+        color=""
+      ;;
+    esac
 
     try_no_blanks git "status:branches" "git banch" branch -vv $color
 
@@ -1265,8 +1300,8 @@ case $1 in
 
     root_to_branch
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color
+    info "status" "showing commits ahead" "(${STATUS_LIMIT}) commits in $branch not $root (parent)"
+    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color "-${STATUS_LIMIT}"
     ;;
   "verify")
     shift
@@ -1307,12 +1342,12 @@ case $1 in
 
     git_arguments -compact
 
-    if [[ ${#OPTIONS[0]} -lt 1 ]]
+    if [[ ${#VC_ARGS[0]} -lt 1 ]]
     then
       git_options "!show"
       try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
 
-      exit 0
+      exit $?
     fi
  
     for entry in ${OPTIONS[@]}
@@ -1330,38 +1365,42 @@ case $1 in
     vc_options $@
     git_arguments -compact
 
-    if [[ ${#OPTIONS[@]} -gt 1 ]]
+    if [[ ${#ARGUMENTS[@]} -gt 1 ]]
     then
-      git_options
-
       remote=${OPTIONS[0]}
       branch=${OPTIONS[1]}
 
-      try "git" "get" "fetch commits from $remote" fetch "$remote"
+      info "get" "setting remote branch" "setting upstream" "upstream = ${remote} ${branch}"
+
+      set_remote_branch $remote $branch
     else
-      git_options ":upstream"
+      get_remote_branch
+      code=$?
 
-      current=`git branch | grep '\*' | cut -d ' ' -f 2`
-
-      remote=`git config branch.${current}.remote`
-      branch=`git config branch.${current}.merge | sed -e s,^.*/,,g`
-
-      try "git" "get" "fetch commits from default remote" fetch
+      if [[ $code -ne 0 ]]
+      then
+        abort "get" "getting remote branch" "$code" "no remote branch set"
+      fi
     fi
       
-    try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+    git_options
 
-    if [[ $? -ne 0 ]]
+    try "git" "get" "fetch commits from $remote" fetch "$remote"
+
+    if [[ $? -eq 0 ]]
     then
+      try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
+    else
       abort "get" "no commits upstream" "NA"
     fi
 
-    if ! ask_yn "merge upstream changes into current branch"
+    if ! ask_yn "fast forwad only?"
     then
       exit 0
     fi
      
-    $0 merge "${remote}/${branch}"
+    try "git" "get" "attempt to merge changes that dont collide" merge --ff-only
+    exit $?
     ;;
   "patch")
     shift
@@ -1423,7 +1462,7 @@ case $1 in
     git_arguments
     git_options
 
-    try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
     ;;
   "behind")
     shift
@@ -1460,20 +1499,22 @@ case $1 in
 
     try "git" "down" "fetch from upstream" fetch origin
 
-    try_no_blanks "git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
     ;;
   "merge")
     shift
 
     vc_options $@
 
-    if [[ ${#OPTIONS[@]} -gt 0 ]]
+    if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
-      root=`git branch | grep '*' | cut -d ' ' -f 2`
-      branch=${OPTIONS[0]}
+      current_branch
+      root=$current
+      branch=${VC_ARGS[0]}
     else
       root_to_branch
-      try "git" "merge" "switch to the root: ${root} for merge" checkout ${root}
+
+      try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
     fi
 
     if ask_yn "merge $branch into \"$root\""
@@ -1489,8 +1530,6 @@ case $1 in
     shift
 
     vc_options $@
-    git_arguments
-    git_options
 
     root_to_branch
 
@@ -1502,8 +1541,6 @@ case $1 in
     shift
 
     vc_options $@
-    git_arguments
-    git_options
 
     root_to_branch
 
@@ -1709,9 +1746,7 @@ rb       = rollback to index, work, merge
 
 [repository commands]
 
-add <remote> <branch>   = check out a remote branch with the same name
 get <branch> <upstream> = checkout a upstream branch
-track <local> <remote> <branch> = checkout remote branch with a local name
 
 [workflow]
 
@@ -1738,8 +1773,7 @@ report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-beta <msg>       = create a beta tag with the message
-check            = fetch main, develop, show log of any pending changes
+beta <msg>       = create a beta tag with the messagecheck            = fetch main, develop, show log of any pending changes
 start <version>  = start the release process for version
 release          = execute git flow release finish with VERSION
 
