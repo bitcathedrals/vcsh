@@ -53,7 +53,7 @@ DEBUG='no'
 OPTIONS=()
 FILES=()
 
-STATUS_LIMIT="-10"
+STATUS_LIMIT="10"
 
 #
 # debug
@@ -125,6 +125,28 @@ function info {
   shift
 
   echo >/dev/stderr "vc: [${task}] $describe -> $info"
+}
+
+
+#
+# warning -       print information to stderr if VERBOSE = 'yes'
+#
+
+# task         = the task at hand
+# description  = description of what is being performed
+# @            = information for the user
+
+function warning {
+  task=$1
+  shift
+
+  describe=$1
+  shift
+
+  warning=$1
+  shift
+
+  echo >/dev/stderr "vc: [${task}] $describe -> $warning"
 }
 
 #
@@ -357,9 +379,6 @@ function try_no_blanks {
 }
 
 function root_to_branch {
-  current_branch
-  branch=$current
-
   if [[ "$branch" == "${INTEGRATION}" ]]
   then
     root="${MAIN}"
@@ -856,8 +875,54 @@ MESSAGE
   fi
 }
 
-function current_branch {
-  current=`git branch | grep '^*' | cut -d ' ' -f 2`
+function get_current_branch {
+  current_branch=`git branch | grep '*' | tr -s ' ' | cut -d ' ' -f 2`
+}
+
+function get_remote_branch {
+  if [[ $# -gt 0 ]]
+  then
+    current_branch=$1
+  else
+    get_current_branch
+  fi
+
+  remote=`git config branch.${current_branch}.remote`
+
+  if [[ -z $remote ]]
+  then
+    warning "current_branch" "get current upstream branch" "no remote"
+    return 1
+  fi
+
+  remote_branch=`git config branch.${current_branch}.merge`
+
+  if [[ -z $remote_branch ]]
+  then
+    warning "current_branch" "get current upstream branch" "no upstream branch in $remote"
+
+    return 1
+  fi
+
+  remote_branch=`echo "$remote_branch" | sed -e s,^.*/.*/,,g`
+
+  verbosity "current branch" "remote = \"${remote}\" remote branch is \"${remote_branch}\""
+
+  return 0
+}
+
+function setup_remote_branch {
+  origin=$1
+  branch=$2
+
+  current_branch=$3
+
+  if [[ -z $current_branch ]]
+  then
+    get_current_branch    
+  fi
+
+  try "git" "setup_remote_branch" "set the remote branch for the current branch" branch --set-upstream-to="${origin}/${branch}" "${current_branch}"
 }
 
 case $1 in
@@ -1208,6 +1273,15 @@ case $1 in
 
     vc_options $@
 
+    case $COLOR in
+      "yes")
+        color="--color"
+      ;;
+      "no")
+        color=""
+      ;;
+    esac
+
     try_no_blanks git "status:branches" "git banch" branch -vv $color
 
     output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
@@ -1226,8 +1300,8 @@ case $1 in
 
     root_to_branch
 
-    echo ">>>showing commits in $branch not $root (parent)"
-    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color ${STATUS_LIMIT}
+    info "status" "showing commits ahead" "(${STATUS_LIMIT}) commits in $branch not $root (parent)"
+    try_no_blanks "@git" "status:commits ahead" "log" log "${root}..${branch}" --oneline $color "-${STATUS_LIMIT}"
     ;;
   "verify")
     shift
@@ -1293,27 +1367,30 @@ case $1 in
 
     if [[ ${#ARGUMENTS[@]} -gt 1 ]]
     then
-      git_options
-
       remote=${OPTIONS[0]}
       branch=${OPTIONS[1]}
 
-      try "git" "get" "fetch commits from $remote" fetch "$remote"
+      info "get" "setting remote branch" "setting upstream" "upstream = ${remote} ${branch}"
+
+      set_remote_branch $remote $branch
     else
-      git_options ":upstream"
+      get_remote_branch
+      code=$?
 
-      current_branch
-
-      remote=`git config branch.${current}.remote`
-      branch=`git config branch.${current}.merge | sed -e s,^.*/,,g`
-
-      try "git" "get" "fetch commits from default remote" fetch
+      if [[ $code -ne 0 ]]
+      then
+        abort "get" "getting remote branch" "$code" "no remote branch set"
+      fi
     fi
       
-    try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} ${post_options[@]}
+    git_options
 
-    if [[ $? -ne 0 ]]
+    try "git" "get" "fetch commits from $remote" fetch "$remote"
+
+    if [[ $? -eq 0 ]]
     then
+      try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
+    else
       abort "get" "no commits upstream" "NA"
     fi
 
@@ -1322,7 +1399,10 @@ case $1 in
       exit 0
     fi
      
-    $0 merge "${remote}/${branch}"
+    $0 rebase "${remote}/${branch}"
+    ;;
+  "rebase")
+      echo "called rebase"
     ;;
   "patch")
     shift
