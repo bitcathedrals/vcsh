@@ -190,7 +190,8 @@ function abort {
 
   if [[ $# -gt 0 ]]
   then
-    exit_code=$1
+    exit_code="(${1})"
+    shift
   fi
 
   if [[ -n $exit_code ]]
@@ -198,7 +199,15 @@ function abort {
     exit_code="(${exit_code})"
   fi
 
-  echo >/dev/stderr "vc: [${task}] abort! $exit_code $describe > \"$*\""
+  details=""
+
+  if [[ $# -gt 0 ]]
+  then
+    details="\"($*)\""
+    shift
+  fi
+
+  echo >/dev/stderr "vc: [${task}] abort! ${exit_code} ${describe} ${details}"
   exit 1
 }
 
@@ -378,7 +387,46 @@ function try_no_blanks {
   return $exit_status
 }
 
+function get_current_branch {
+  current_branch=`git branch | grep '*' | tr -s ' ' | cut -d ' ' -f 2`
+}
+
+function get_remote_branch {
+  if [[ $# -gt 0 ]]
+  then
+    current_branch=$1
+  else
+    get_current_branch
+  fi
+
+  remote=`git config branch.${current_branch}.remote`
+
+  if [[ -z $remote ]]
+  then
+    warning "current_branch" "get current upstream branch" "no remote"
+    return 1
+  fi
+
+  remote_branch=`git config branch.${current_branch}.merge`
+
+  if [[ -z $remote_branch ]]
+  then
+    warning "current_branch" "get current upstream branch" "no upstream branch in $remote"
+
+    return 1
+  fi
+
+  remote_branch=`echo "$remote_branch" | sed -e s,^.*/.*/,,g`
+
+  verbosity "current branch" "remote = \"${remote}\" remote branch is \"${remote_branch}\""
+
+  return 0
+}
+
 function root_to_branch {
+  get_current_branch
+  branch=$current_branch
+
   if [[ "$branch" == "${INTEGRATION}" ]]
   then
     root="${MAIN}"
@@ -387,6 +435,16 @@ function root_to_branch {
     root=$(git tag | grep release | sort -V | tail -n 1)
   else  
     root="${INTEGRATION}"
+  fi
+
+  if [[ -z $root ]]
+  then
+    abort "root_to_branch" "root does not exist"
+  fi
+
+  if [[ -z $branch ]]
+  then
+    abort "root_to_branch" "branch does not exist"
   fi
 
   for check in "$root" "$branch"
@@ -875,42 +933,6 @@ MESSAGE
   fi
 }
 
-function get_current_branch {
-  current_branch=`git branch | grep '*' | tr -s ' ' | cut -d ' ' -f 2`
-}
-
-function get_remote_branch {
-  if [[ $# -gt 0 ]]
-  then
-    current_branch=$1
-  else
-    get_current_branch
-  fi
-
-  remote=`git config branch.${current_branch}.remote`
-
-  if [[ -z $remote ]]
-  then
-    warning "current_branch" "get current upstream branch" "no remote"
-    return 1
-  fi
-
-  remote_branch=`git config branch.${current_branch}.merge`
-
-  if [[ -z $remote_branch ]]
-  then
-    warning "current_branch" "get current upstream branch" "no upstream branch in $remote"
-
-    return 1
-  fi
-
-  remote_branch=`echo "$remote_branch" | sed -e s,^.*/.*/,,g`
-
-  verbosity "current branch" "remote = \"${remote}\" remote branch is \"${remote_branch}\""
-
-  return 0
-}
-
 function setup_remote_branch {
   origin=$1
   branch=$2
@@ -1394,14 +1416,36 @@ case $1 in
       abort "get" "no commits upstream" "NA"
     fi
 
-    if ! ask_yn "fast forwad only?"
+    if ! ask_yn "fast forward?"
     then
       exit 0
     fi
      
-    try "git" "get" "attempt to merge changes that dont collide" merge --ff-only
-    exit $?
+    try "git" "get" "attempt to fast forward if they don\'t collide" merge --ff-only
+
+    if [[ $? -ne 0 ]]
+    then
+      if ask_yn "can\'t fast forward, rebase?"
+      then
+        root_to_branch
+
+        try "git" "get" "attempt to merge changes that dont collide" rebase "${root}"
+      fi
+    fi    
     ;;
+  "rebase")
+    shift
+
+    vc_options $@
+    git_arguments
+
+    # :merge calls root_to_branch so those values are available from here out
+    git_options :merge
+
+    info "rebase:commits" "show commits to be merged" "merging ${branch} and ${root}"
+    try_no_blanks "git" "rebase:commits branch ahead of common ancestor" log ${pre_options[@]} ${post_options[@]}
+  ;;
+
   "patch")
     shift
 
