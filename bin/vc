@@ -943,6 +943,23 @@ function setup_remote_branch {
   try "git" "setup_remote_branch" "set the remote branch for the current branch" branch --set-upstream-to="${origin}/${branch}" "${current_branch}"
 }
 
+function require_feature_branch {
+  get_current_branch
+
+  if echo "$current_branch" | grep "${FEATURE}" >/dev/null 2>&1
+  then
+    return 0
+  fi
+
+  if echo "$current_branch" | grep "${BUGFIX}" >/dev/null 2>&1
+  then
+    return 0
+  fi
+
+  error "require_feature_branch" "NA" "branch \"$current_branch\" is not a feature/bugfix branch."
+  return 1
+}
+
 case $1 in
   "tools-zshrc")
     cp "${VCSH_SHELL}/zshrc.rc" $HOME/.zshrc
@@ -1117,16 +1134,12 @@ case $1 in
     shift
 
     vc_options $@
-    name=${VC_ARGS[0]}
 
-    if [[ -z $name ]]
+    require_feature_branch
+    
+    if [[ $? -ne 0 ]]
     then
-      abort "end" "name of branch missing" "NA"
-    fi
-
-    if ! git branch | grep "${FEATURE}/${name}" >/dev/null 2>&1
-    then
-      abort "end" "feature branch ${name} not found" "NA"
+      exit $?
     fi
 
     $0 merge
@@ -1156,16 +1169,12 @@ case $1 in
     shift
 
     vc_options $@
-    name=${VC_ARGS[0]}
 
-    if [[ -z $name ]]
-    then
-      abort "end" "name of branch missing" "NA"
-    fi
+    require_feature_branch
 
-    if ! git branch | grep "${BUGFIX}/${name}" >/dev/null 2>&1
+    if [[ $? -ne 0 ]]
     then
-      abort "end" "bug branch ${name} not found" "NA"
+      exit $?
     fi
 
     $0 merge
