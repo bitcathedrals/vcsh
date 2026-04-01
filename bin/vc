@@ -1129,8 +1129,6 @@ case $1 in
       abort "end" "feature branch ${name} not found" "NA"
     fi
 
-    try "git" "end" "switch to trunk for merge"
-
     $0 merge
     ;;
   "bug")
@@ -1560,7 +1558,13 @@ case $1 in
       branch=${VC_ARGS[0]}
     else
       root_to_branch
+
       try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
+
+      if [[ $? -ne 0 ]]
+      then
+        abort "merge" "cannot switch to branch \"${root}\"" "$?"
+      fi
     fi
 
     if ask_yn "merge $branch into \"$root\""
