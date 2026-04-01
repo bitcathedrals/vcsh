@@ -557,10 +557,6 @@ function vc_options {
 }
 
 #
-# git_scrub_arguments
-#
-
-#
 # git_arguments - process CLI arguments for git_options
 #
 
@@ -1133,6 +1129,8 @@ case $1 in
       abort "end" "feature branch ${name} not found" "NA"
     fi
 
+    try "git" "end" "switch to trunk for merge"
+
     $0 merge
     ;;
   "bug")
@@ -1557,12 +1555,11 @@ case $1 in
 
     if [[ ${#VC_ARGS[@]} -gt 0 ]]
     then
-      current_branch
-      root=$current
+      get_current_branch
+      root=$current_branch
       branch=${VC_ARGS[0]}
     else
       root_to_branch
-
       try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
     fi
 
