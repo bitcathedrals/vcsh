@@ -1348,7 +1348,7 @@ case $1 in
 
     if [[ ${OPTIONS[0]} -lt 1 ]]
     then 
-      try git "commit" "chronology numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl
+      try git "commit" "chronology numbered list of commits" ${pre_options[@]} ${post_options[@]} | nl | sed 's/^[[:space:]]*//'
       exit 0
     fi
 
