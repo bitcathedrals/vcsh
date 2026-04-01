@@ -1441,8 +1441,6 @@ case $1 in
     # :merge calls root_to_branch so those values are available from here out
     git_options :merge
 
-    base=${OPTIONS[0]}
-
     info "rebase:commits" "show commits to be merged" "merging ${branch} and ${root}"
     try_no_blanks "git" "show commits that can be rebased" log ${pre_options[@]} ${post_options[@]}
 
