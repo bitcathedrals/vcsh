@@ -1467,7 +1467,7 @@ case $1 in
     git_arguments
     git_options ":upstream"
 
-    try_no_blanks "git" "pending" "show work not in branch" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "pending" "show work not in branch" ${pre_options[@]} ${post_options[@]}
     exit $?
     ;;
   "list")
