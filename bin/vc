@@ -1544,7 +1544,7 @@ case $1 in
     vc_options $@
 
     git_arguments -compact
-    git_options
+    git_options :upstream
 
     try "git" "down" "fetch from upstream" fetch origin
 
