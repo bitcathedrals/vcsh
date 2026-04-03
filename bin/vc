@@ -1543,12 +1543,12 @@ case $1 in
 
     vc_options $@
 
-    git_arguments
+    git_arguments -compact
     git_options
 
     try "git" "down" "fetch from upstream" fetch origin
 
-    try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]} ${post_options[@]}
+    try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -10 ${post_options[@]}
     ;;
   "merge")
     shift
