@@ -1747,7 +1747,7 @@ case $1 in
     cat <<HELP | grep "$filter"
 vc
 
-[tools commands]
+[zsh tools commands]
 
 tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
 tools-custom        = install zshrc.custom
@@ -1765,7 +1765,6 @@ tools-brew-rebuild  = rebuild packages in /opt/homebrew
 dependencies-init     = initialize /opt/dependencies for stable and minimal deps to compile against
 dependencies-upgrade  = upgrade /opt/dependencies 
 dependencies-install  = install into /opt/dependencies a list of packages
-dependencies-python   = install into /opt/dependencies python dependencies
 
 [submodule]
 
