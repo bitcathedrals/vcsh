@@ -10,4 +10,8 @@
 * test
 ** check that show works with an argument
 ** check that pending works
+<<<<<<< HEAD
 
+||||||| da6f489
+=======
+>>>>>>> develop
