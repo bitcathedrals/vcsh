@@ -1,0 +1,13 @@
+* TODO for vc
+
+* enhancements
+** commit allow a person to specify two numbers and get a git range back
+
+* bugs
+** commit, figure out why it's not working
+** commit, when there are no commits (like a feature branch) it breaks silently
+
+* test
+** check that show works with an argument
+** check that pending works
+
