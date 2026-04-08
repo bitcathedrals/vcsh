@@ -1,11 +1,12 @@
 * TODO for vc
 
 * enhancements
-** commit allow a person to specify two numbers and get a git range back
 
 * bugs
+
 ** commit, when there are no commits (like a feature branch) it breaks silently
 ** diff with one args should take a branch like it does, but also a range specification, can detect when arg has ".."
+** integrate doesnt offer and do rebase 
 
 * doc work
 ** show
@@ -16,9 +17,6 @@
 ** patch
 ** pending
 ** list
-** history
-** ahead
-** behind
 
 ** merge
 ** pull

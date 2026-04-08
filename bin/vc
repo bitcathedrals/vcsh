@@ -1763,6 +1763,12 @@ case $1 in
     cat <<HELP | grep "$filter"
 vc
 
+[documentation]
+
+help [keyword]      = either print this list of commands or with arg
+                      search for a set of commands
+man <command>       = get detailed description of a single command
+
 [zsh tools commands]
 
 tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
@@ -1837,7 +1843,7 @@ report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-beta <msg>       = create a beta tag with the messagecheck            = fetch main, develop, show log of any pending changes
+beta <msg>       = create a beta tag with the messagecheck
 start <version>  = start the release process for version
 release          = execute git flow release finish with VERSION
 
