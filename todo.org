@@ -8,24 +8,18 @@
 ** diff with one args should take a branch like it does, but also a range specification, can detect when arg has ".."
 
 * doc work
-** status
-** make a part of the documentation an arguments entry in man that shows how to use all the options
-
-** verify
 ** show
 ** get
 - no arg scenario: fast forward
 - 1 arg scenario: use as remote name, do a fetch, and then log :upstream
 - 2 arg scenario: set a upstream with arg1 = remote, arg2 = branch, set tracking, and fetch the remote
-** rebase
 ** patch
 ** pending
 ** list
 ** history
 ** ahead
 ** behind
-** up
-** down
+
 ** merge
 ** pull
 ** push

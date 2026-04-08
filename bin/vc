@@ -827,6 +827,7 @@ function git_options {
   if [[ "$OP" == "cat-file" ]]
   then
     if [[ ${#FILES[@]} -lt 1 ]]
+
     then
       error "git_options" "NA" "cat-file no file argument" "cat-file"
     fi
@@ -1551,7 +1552,9 @@ case $1 in
     git_arguments -compact
     git_options :upstream
 
-    try "git" "down" "fetch from upstream" fetch origin
+    get_remote_branch
+
+    try "git" "down" "fetch from upstream" fetch $remote
 
     try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -10 ${post_options[@]}
     ;;
@@ -2091,6 +2094,64 @@ refactor    = refactor
 dev         = dev
 DESCRIPTION
               ;;
+          "diff")
+              cat <<DESCRIPTION             
+diff [branch]
+
+generate a diff of current branch against a trunk, or
+with a argument diff from HEAD to that branch.
+
+DESCRIPTION
+              ;;
+          "verify")
+              cat <<DESCRIPTION             
+verify
+
+using default options show signatures for commits
+
+DESCRIPTION
+              ;;
+          "status")
+              cat <<DESCRIPTION             
+status
+
+Produce a status report showing branch states, index state, work area,
+untracked files, and last few commits. If there is nothing to show it
+doesn't show anything.
+
+DESCRIPTION
+              ;;
+
+          "status")
+              cat <<DESCRIPTION             
+rebase
+
+rebase against trunk, which is determined in the usal way (parent of
+current branch)
+
+DESCRIPTION
+              ;;
+
+          "up")
+              cat <<DESCRIPTION             
+up
+
+push up ${INTEGRATION} and ${MAIN} trunks, and also tags.
+
+DESCRIPTION
+              ;;
+
+          "down")
+              cat <<DESCRIPTION             
+down
+
+fetch the remote for the current branch, do a fetch, and show a log of
+the last ten commits upstream.
+
+DESCRIPTION
+              ;;
+
+
       esac
       ;;
   *)
