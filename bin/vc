@@ -1838,69 +1838,69 @@ release          = execute git flow release finish with VERSION
 HELP
   ;;
   "man")
-    shift
-
-    case $1 in
-      "tools-zshrc")
-        cat <<DESCRIPTION
+      shift
+    
+      case $1 in
+          "tools-zshrc")
+              cat <<DESCRIPTION
 tools-zshrc
 
 Install the vc version of .zshrc into .zshrc contains many functions
 and alises and is the backbone of tools-custom and tools-prompt.
 
 DESCRIPTION
-        ;;
-      "tools-custom")
-        cat <<DESCRIPTION
+              ;;
+          "tools-custom")
+              cat <<DESCRIPTION
 tools-custom
 
 Install a zshenv script that spins up ssh-agent if needed, sets environment variables
 like path, cleans up the path, deduping and sorting.
 
 DESCRIPTION
-        ;;
-      "tools-prompt")
-        cat <<DESCRIPTION
+              ;;
+          "tools-prompt")
+              cat <<DESCRIPTION
 tools-custom
 
 Install a prompt script that shows current git repository, state of work area in git,
 
 DESCRIPTION
-        ;;
-      "tools-brew-init")
-        cat <<DESCRIPTION
+              ;;
+          "tools-brew-init")
+              cat <<DESCRIPTION
 tools-brew-init
 
 For MacOS install homebrew core into ~/tools creating dirs if needed.
 
 DESCRIPTION
-    ;;
-    "tools-brew-uprade")
-      cat <<DESCRIPTION
+              ;;
+          "tools-brew-uprade")
+              cat <<DESCRIPTION
 tools-brew-ugprade
 
 Upgrade all of the homebrew packages.
 
 DESCRIPTION
-    ;;
-    "tools-brew-install")
-      cat <<DESCRIPTION
+              ;;
+          "tools-brew-install")
+              cat <<DESCRIPTION
 tools-brew-install <package>...
 
 install packages into homebrew using the detected architecture.
 
 DESCRIPTION
-    ;;
-    "tools-brew-rebuild")
-      cat <<DESCRIPTION
+              ;;
+          "tools-brew-rebuild")
+              cat <<DESCRIPTION
 tools-brew-rebuild <package>....
 
 rebuild/reinstall all the packages in the repository.
 
 DESCRIPTION
-    ;;
-    "dependencies-init")
-      cat <<DESCRIPTION
+              ;;
+          "dependencies-init")
+              cat <<DESCRIPTION
 dependencies-init
 
 init "dependencies" installation of homebrew. Frequent breakage when
@@ -1911,71 +1911,68 @@ by interpreters and libraries.
 install to /opt/dependencies/
 
 DESCRIPTION
-      ;;
-"dependencies-upgrade")
-      cat <<DESCRIPTION
+              ;;
+          "dependencies-upgrade")
+              cat <<DESCRIPTION
 dependencies-upgrade
 
 Uprade everything in the /opt/dependencies/
 DESCRIPTION
-
-      ;;
-    "dependencies-install")
-      cat <<DESCRIPTION
+              ;;
+          "dependencies-install")
+              cat <<DESCRIPTION
 
 dependencies-install <package>...
 
       Install 
 DESCRIPTION
-      ;;
-    "modinit")
-      cat <<DESCRIPTION
+              ;;
+          "modinit")
+              cat <<DESCRIPTION
 modinit <module>
 
 initialize a submodule <module> and pull it's code.
 DESCRIPTION
-      ;;
-    "modadd")
-      cat <<DESCRIPTION
+              ;;
+          "modadd")
+              cat <<DESCRIPTION
 modinit <module>
 
 initialize a submodule <module> and pull it's code.
 DESCRIPTION
-      ;;
+              ;;
 
-    "modsync")
-      cat <<DESCRIPTION
+          "modsync")
+              cat <<DESCRIPTION
 modsync
 
 git pull and pull all the submodules to update
 DESCRIPTION
-      ;;
-    "modupdate")
-      cat <<DESCRIPTION
+              ;;
+          "modupdate")
+              cat <<DESCRIPTION
 
 modupdate  <module>
 
 git pull a single module
 DESCRIPTION
-      ;;
-    "modrm")
-      cat <<DESCRIPTION
+              ;;
+          "modrm")
+              cat <<DESCRIPTION
 modrm <module>
 
 delete modmodule <module>
 DESCRIPTION
-      ;;
-    esac
-
-    "modall")
-      cat <<DESCRIPTION
+              ;;
+          "modall")
+              cat <<DESCRIPTION
 modrm <module>
 
 init and update all modules
 DESCRIPTION
-      ;;
-    "begin")
-      cat <<DESCRIPTION
+              ;;
+          "begin")
+              cat <<DESCRIPTION
 begin <feature branch name>
 
 start a new feature branch which is named ${FEATURE}/<branch>.  the
@@ -1995,9 +1992,9 @@ merging space for all the branches.
 It is advisable to use begin to start branches for all
 non-trivial work.
 DESCRIPTION
-      ;;
-    "end")
-      cat <<DESCRIPTION
+              ;;
+          "end")
+              cat <<DESCRIPTION
 end
 
 from within a feature branch end the feature by switching to
@@ -2009,9 +2006,9 @@ destructive commands in an automated way.
 
 Must be executed within a feature branch.
 DESCRIPTION
-      ;;
-    "bug")
-      cat <<DESCRIPTION
+              ;;
+          "bug")
+              cat <<DESCRIPTION
 bug
 
 start a new bug branch which is named ${BUGFIX}/<branch>.  the bugfix
@@ -2030,9 +2027,9 @@ is a merging space for all the branches.
 It is advisable to use begin to start branches for all
 non-trivial work.
 DESCRIPTION
-      ;;
-    "close")
-      cat <<DESCRIPTION
+              ;;
+          "close")
+              cat <<DESCRIPTION
 close
 
 from within a bugfix branch close the bugfix by switching to the trunk
@@ -2043,9 +2040,9 @@ commands in an automated way.
 
 Must be executed within a bugfix branch.
 DESCRIPTION
-      ;;
-    "goto")
-      cat <<DESCRIPTION
+              ;;
+          "goto")
+              cat <<DESCRIPTION
 goto <none> | <feature|bugfix|trunk>
 
 switch to a feature or bugfix by name without needing to specify the
@@ -2056,44 +2053,46 @@ It will search both feature and bugfixes.
 With no args it will walk back to the next parent. So from a
 "${FEATURE}/xxx" no arg will switch to the trunk ${INTEGRATION}.
 DESCRIPTION
-      ;;
-    "beta")
-      cat <<DESCRIPTION
+              ;;
+          "beta")
+              cat <<DESCRIPTION
 beta <feature> <message>
 
-TODO
+create a tag for beta testing where a snapshot of all branches is
+desirable.
 
+The tag format is: {feature}/{message}
 DESCRIPTION
-      ;;
-    "tag")
-      cat <<DESCRIPTION
+              ;;
+          "tag")
+              cat <<DESCRIPTION
 tag <version> <message"
 
-TODO
+create a tag for the release.
+The tag format is: release-{version}
+
+the message should include a report like summary
 
 DESCRIPTION
-      ;;
-    "tag")
-      cat <<DESCRIPTION
+              ;;
+          "report")
+              cat <<DESCRIPTION
 report
 
-TODO
+Generate a summary of the changes from the current trunk/branch against
+the parent. The commits are collected by semantic type and printed by
+type.
+
+features    = feat
+fixes       = fix
+syncs       = sync
+merges      = merge
+refactor    = refactor
+dev         = dev
 DESCRIPTION
-      ;;    
-    "report")
-cat <<DESCRIPTION
-    features
-    fixes
-    syncs
-    merges
-    refactor
-    dev
-DESCRIPTION
-
-
-    esac
-
-
+              ;;
+      esac
+      ;;
   *)
     $0 history $@
   ;;

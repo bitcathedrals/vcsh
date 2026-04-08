@@ -7,8 +7,6 @@
 ** commit, when there are no commits (like a feature branch) it breaks silently
 ** diff with one args should take a branch like it does, but also a range specification, can detect when arg has ".."
 
-** check that pending works
-
 * doc work
 ** status
 ** make a part of the documentation an arguments entry in man that shows how to use all the options
