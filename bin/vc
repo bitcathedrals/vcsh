@@ -1981,6 +1981,8 @@ DESCRIPTION
               cat <<DESCRIPTION
 begin <feature branch name>
 
+options: "vc options"
+
 start a new feature branch which is named ${FEATURE}/<branch>.  the
 feature stem can be changed in vc.sh config file by setting
 FEATURE=<prefix>.
@@ -2003,6 +2005,8 @@ DESCRIPTION
               cat <<DESCRIPTION
 end
 
+options: vc options
+
 from within a feature branch end the feature by switching to
 the trunk and merging the work from the feature branch into
 the trunk.
@@ -2016,6 +2020,8 @@ DESCRIPTION
           "bug")
               cat <<DESCRIPTION
 bug
+
+options: vc options
 
 start a new bug branch which is named ${BUGFIX}/<branch>.  the bugfix
 stem can be changed in vc.sh config file by setting BUGFIX=<prefix>.
@@ -2051,6 +2057,8 @@ DESCRIPTION
               cat <<DESCRIPTION
 goto <none> | <feature|bugfix|trunk>
 
+options: vc options
+
 switch to a feature or bugfix by name without needing to specify the
 stem: what would be git switch feature/example can be vc goto example.
 
@@ -2064,6 +2072,8 @@ DESCRIPTION
               cat <<DESCRIPTION
 beta <feature> <message>
 
+options: vc options
+
 create a tag for beta testing where a snapshot of all branches is
 desirable.
 
@@ -2073,6 +2083,8 @@ DESCRIPTION
           "tag")
               cat <<DESCRIPTION
 tag <version> <message"
+
+options: vc options
 
 create a tag for the release.
 The tag format is: release-{version}
@@ -2084,6 +2096,8 @@ DESCRIPTION
           "report")
               cat <<DESCRIPTION
 report
+
+options: vc options, git arguments
 
 Generate a summary of the changes from the current trunk/branch against
 the parent. The commits are collected by semantic type and printed by
@@ -2101,6 +2115,9 @@ DESCRIPTION
               cat <<DESCRIPTION             
 diff [branch]
 
+options: vc options, git arguments, git options
+
+
 generate a diff of current branch against a trunk, or
 with a argument diff from HEAD to that branch.
 
@@ -2108,7 +2125,7 @@ DESCRIPTION
               ;;
           "verify")
               cat <<DESCRIPTION             
-verify
+verify: vc options, git arguments, git options
 
 using default options show signatures for commits
 
@@ -2118,6 +2135,8 @@ DESCRIPTION
               cat <<DESCRIPTION             
 status
 
+options: vc options
+
 Produce a status report showing branch states, index state, work area,
 untracked files, and last few commits. If there is nothing to show it
 doesn't show anything.
@@ -2125,12 +2144,15 @@ doesn't show anything.
 DESCRIPTION
               ;;
 
-          "status")
-              cat <<DESCRIPTION             
-rebase
+          "commit")
+              cat <<DESCRIPTION
+commit <> | <number>
 
-rebase against trunk, which is determined in the usal way (parent of
-current branch)
+show commits with numbering, and select commit by the number, which
+generates the SHA for that commit. 
+
+It may seem like this can be accomplished via cut and paste, but on a
+server over ssh this sort of thing can be clunky.
 
 DESCRIPTION
               ;;
@@ -2202,7 +2224,7 @@ DESCRIPTION
 
           "options")
               cat <<DESCRIPTION             
-options
+vc options
 
 Not all options are available for all commands, since some options
 are nonsensible with the command.
@@ -2216,8 +2238,7 @@ vc options: vc options apply to most commands and provide very
 -t        : trace
 -x        : debug
 
-arguments: arguments control the output of commands.
-
+git arguments: arguments control the output of commands.
 
 -compact      = show oneline compact form
 -stat         = show diffstat output
@@ -2238,7 +2259,7 @@ git options: tell vc what to do when generating git commands
 :no-merges       = do not show merges
 :only-merges     = only show merges
 :merge           = use ... spec to show changes not in <trunk> and <branch>
-
+:none            = internal, for tools that don't involve git version specifications like cat-file
 DESCRIPTION
               ;;
 
