@@ -2154,6 +2154,7 @@ the last ten commits upstream.
 DESCRIPTION
               ;;
 
+          "history")
               cat <<DESCRIPTION             
 history
 
@@ -2161,7 +2162,7 @@ show log history of the current branch, using standard options.
 
 DESCRIPTION
               ;;
-
+          "ahead")
               cat <<DESCRIPTION             
 ahead
 
@@ -2171,6 +2172,7 @@ trunk.
 DESCRIPTION
               ;;
 
+          "behind")
               cat <<DESCRIPTION             
 behind
 
@@ -2178,7 +2180,7 @@ Show how many commits are in the trunk but not in the branch
 
 DESCRIPTION
               ;;
-
+          "integrate")
               cat <<DESCRIPTION             
 integrate
 
@@ -2188,7 +2190,7 @@ branch.
 DESCRIPTION
               ;;
 
-
+          "publish")
               cat <<DESCRIPTION             
 publish
 
@@ -2198,7 +2200,7 @@ branch.
 DESCRIPTION
               ;;
 
-
+          "options")
               cat <<DESCRIPTION             
 options
 
@@ -2225,7 +2227,7 @@ arguments: arguments control the output of commands.
 -color        = color history output
 -no-color     = don't color history output
 -v            = verbose
--<n>          = limit number of entries returned
+<n>           = limit number of entries returned
 -diff         = use a diff operation
 -emacs        = use emacs as a difftool or mergetool
 
