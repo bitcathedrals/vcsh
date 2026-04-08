@@ -571,7 +571,6 @@ function vc_options {
 # -<n>          = limit number of entries returned
 # -diff         = use a diff operation
 # -emacs        = use emacs as a difftool or mergetool
-# return
 
 # LIMIT         = count of how many elements to limit output to.
 # SHOW          = git flag to specify output type
@@ -1588,19 +1587,23 @@ case $1 in
       abort "merge" "answer to merge is no" "NA"
     fi
     ;;
-  "pull")
+  "integrate")
     shift
 
     vc_options $@
+    git_arguments
+    git_options
 
-    root_to_branch
+    require_feature_branch
 
-    verbosity "pull" "merge from ${root}"
+    verbosity "integrate" "rebase from ${root}"
 
-    try "git" "merge" "merge no ff from: ${root}" merge --no-ff ${root}
+    $0 rebase "${root}"
     ;;
-  "push")
+  "publish")
     shift
+
+    require_feature_branch
 
     vc_options $@
 
@@ -2147,6 +2150,92 @@ down
 
 fetch the remote for the current branch, do a fetch, and show a log of
 the last ten commits upstream.
+
+DESCRIPTION
+              ;;
+
+              cat <<DESCRIPTION             
+history
+
+show log history of the current branch, using standard options.
+
+DESCRIPTION
+              ;;
+
+              cat <<DESCRIPTION             
+ahead
+
+Show how many commits ahead the current branch is in comparison to the
+trunk.
+
+DESCRIPTION
+              ;;
+
+              cat <<DESCRIPTION             
+behind
+
+Show how many commits are in the trunk but not in the branch
+
+DESCRIPTION
+              ;;
+
+              cat <<DESCRIPTION             
+integrate
+
+rebase on "${INTEGRATION}" trunk to get commits not in the
+branch.
+
+DESCRIPTION
+              ;;
+
+
+              cat <<DESCRIPTION             
+publish
+
+rebase on "${INTEGRATION}" trunk to get commits not in the
+branch.
+
+DESCRIPTION
+              ;;
+
+
+              cat <<DESCRIPTION             
+options
+
+Not all options are available for all commands, since some options
+are nonsensible with the command.
+
+vc options: vc options apply to most commands and provide very
+            general commands like controlling output and
+            enabling verbosity and debugging.
+
+-v        : verbose
+-d        : dry run
+-t        : trace
+-x        : debug
+
+arguments: arguments control the output of commands.
+
+
+-compact      = show oneline compact form
+-stat         = show diffstat output
+-graph        = show graph of commit history
+-details      = show branch details in log output
+-decorate     = decorate history with branch information
+-color        = color history output
+-no-color     = don't color history output
+-v            = verbose
+-<n>          = limit number of entries returned
+-diff         = use a diff operation
+-emacs        = use emacs as a difftool or mergetool
+
+git options: tell vc what to do when generating git commands
+
+:custom          = <branch>...?<trunk> or <trunk>...?<branch>
+:upstream        = execute against upstream branch
+:no-merges       = do not show merges
+:only-merges     = only show merges
+:merge           = use ... spec to show changes not in <trunk> and <branch>
 
 DESCRIPTION
               ;;
