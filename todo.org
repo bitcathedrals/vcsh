@@ -4,14 +4,35 @@
 ** commit allow a person to specify two numbers and get a git range back
 
 * bugs
-** commit, figure out why it's not working
 ** commit, when there are no commits (like a feature branch) it breaks silently
+** diff with one args should take a branch like it does, but also a range specification, can detect when arg has ".."
 
-* test
-** check that show works with an argument
 ** check that pending works
-<<<<<<< HEAD
 
-||||||| da6f489
-=======
->>>>>>> develop
+* doc work
+** status
+** make a part of the documentation an arguments entry in man that shows how to use all the options
+
+** verify
+** show
+** get
+- no arg scenario: fast forward
+- 1 arg scenario: use as remote name, do a fetch, and then log :upstream
+- 2 arg scenario: set a upstream with arg1 = remote, arg2 = branch, set tracking, and fetch the remote
+** rebase
+** patch
+** pending
+** list
+** history
+** ahead
+** behind
+** up
+** down
+** merge
+** pull
+** push
+
+** cat
+** rb
+
+

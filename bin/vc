@@ -944,20 +944,20 @@ function setup_remote_branch {
 }
 
 function require_feature_branch {
-  get_current_branch
+    get_current_branch
 
-  if echo "$current_branch" | grep "${FEATURE}" >/dev/null 2>&1
-  then
-    return 0
-  fi
+    if echo "$current_branch" | grep "${FEATURE}" >/dev/null 2>&1
+    then
+        return 0
+    fi
 
-  if echo "$current_branch" | grep "${BUGFIX}" >/dev/null 2>&1
-  then
-    return 0
-  fi
+    if echo "$current_branch" | grep "${BUGFIX}" >/dev/null 2>&1
+    then
+        return 0
+    fi
 
-  error "require_feature_branch" "NA" "branch \"$current_branch\" is not a feature/bugfix branch."
-  return 1
+    error "require_feature_branch" "NA" "branch \"$current_branch\" is not a feature/bugfix branch."
+    return 1
 }
 
 case $1 in
@@ -991,7 +991,7 @@ case $1 in
     $VCSH_ARCH_COMMAND brew install $@
   ;;
   "tools-brew-rebuild")
-    $VCSH_ARCH_COMMAND brew list | xargs arch -arm64 brew reinstall
+    $VCSH_ARCH_COMMAND brew list | xargs arch "-${VCSH_ARCH}"  brew reinstall
   ;;
   "dependencies-init")
     test -d /opt/dependencies || sudo mkdir -p /opt/dependencies
@@ -1018,8 +1018,10 @@ case $1 in
   # modules
   #
   "modinit")
-    git submodule init
-    git submodule update --init
+    shift
+
+    git submodule init $1
+    git submodule update --init $1
     ;;
   "modadd")
     shift
@@ -1061,22 +1063,6 @@ case $1 in
     else
       echo "vcsh: update failed. cleanup required."
       exit 1
-    fi
-    ;;
-  "modbranch")
-    shift
-
-    if [[ -z $1 || -z $2 ]]
-    then
-      echo "vcsh: update a submodule requires a submodule path and a branch"
-      exit 1
-    fi
-
-    if (cd $1 && git checkout $2)
-    then
-      echo "vcsh: switch to branch $2 ok. please remember to commit."
-    else
-      echo "vcsh: switch submodule $1 to branch $2 failed. cleanup required."
     fi
     ;;
   "modrm")
@@ -1121,6 +1107,13 @@ case $1 in
       abort "begin" "name required for a new feature branch" "NA"
     fi
 
+    try git "begin" "switch to integration trunk ${INTEGRATION}" switch "${INTEGRATION}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "begin" "switch to integration trunk ${INTEGRATION} failed" "$?"
+    fi
+
     try git "begin" "checkout the feature branch" checkout -b "${FEATURE}/${name}"
 
     if [[ $? -ne 0 ]]
@@ -1154,6 +1147,13 @@ case $1 in
     then
       abort "bug" "name of the bugfix branch to open is missing." "NA"
       exit 1
+    fi
+
+    try git "bug" "switch to integration trunk ${INTEGRATION}" switch "${INTEGRATION}"
+
+    if [[ $? -ne 0 ]]
+    then
+      abort "bug" "switch to integration trunk ${INTEGRATION} failed" "$?"
     fi
 
     try git "bug" "checkout the bugfix branch" checkout -b "${BUGFIX}/${name}"
@@ -1837,6 +1837,263 @@ release          = execute git flow release finish with VERSION
 
 HELP
   ;;
+  "man")
+    shift
+
+    case $1 in
+      "tools-zshrc")
+        cat <<DESCRIPTION
+tools-zshrc
+
+Install the vc version of .zshrc into .zshrc contains many functions
+and alises and is the backbone of tools-custom and tools-prompt.
+
+DESCRIPTION
+        ;;
+      "tools-custom")
+        cat <<DESCRIPTION
+tools-custom
+
+Install a zshenv script that spins up ssh-agent if needed, sets environment variables
+like path, cleans up the path, deduping and sorting.
+
+DESCRIPTION
+        ;;
+      "tools-prompt")
+        cat <<DESCRIPTION
+tools-custom
+
+Install a prompt script that shows current git repository, state of work area in git,
+
+DESCRIPTION
+        ;;
+      "tools-brew-init")
+        cat <<DESCRIPTION
+tools-brew-init
+
+For MacOS install homebrew core into ~/tools creating dirs if needed.
+
+DESCRIPTION
+    ;;
+    "tools-brew-uprade")
+      cat <<DESCRIPTION
+tools-brew-ugprade
+
+Upgrade all of the homebrew packages.
+
+DESCRIPTION
+    ;;
+    "tools-brew-install")
+      cat <<DESCRIPTION
+tools-brew-install <package>...
+
+install packages into homebrew using the detected architecture.
+
+DESCRIPTION
+    ;;
+    "tools-brew-rebuild")
+      cat <<DESCRIPTION
+tools-brew-rebuild <package>....
+
+rebuild/reinstall all the packages in the repository.
+
+DESCRIPTION
+    ;;
+    "dependencies-init")
+      cat <<DESCRIPTION
+dependencies-init
+
+init "dependencies" installation of homebrew. Frequent breakage when
+updating a default homebrew environment is effectively mitigated by
+having a homebrew installation that is only used for building against
+by interpreters and libraries.
+
+install to /opt/dependencies/
+
+DESCRIPTION
+      ;;
+"dependencies-upgrade")
+      cat <<DESCRIPTION
+dependencies-upgrade
+
+Uprade everything in the /opt/dependencies/
+DESCRIPTION
+
+      ;;
+    "dependencies-install")
+      cat <<DESCRIPTION
+
+dependencies-install <package>...
+
+      Install 
+DESCRIPTION
+      ;;
+    "modinit")
+      cat <<DESCRIPTION
+modinit <module>
+
+initialize a submodule <module> and pull it's code.
+DESCRIPTION
+      ;;
+    "modadd")
+      cat <<DESCRIPTION
+modinit <module>
+
+initialize a submodule <module> and pull it's code.
+DESCRIPTION
+      ;;
+
+    "modsync")
+      cat <<DESCRIPTION
+modsync
+
+git pull and pull all the submodules to update
+DESCRIPTION
+      ;;
+    "modupdate")
+      cat <<DESCRIPTION
+
+modupdate  <module>
+
+git pull a single module
+DESCRIPTION
+      ;;
+    "modrm")
+      cat <<DESCRIPTION
+modrm <module>
+
+delete modmodule <module>
+DESCRIPTION
+      ;;
+    esac
+
+    "modall")
+      cat <<DESCRIPTION
+modrm <module>
+
+init and update all modules
+DESCRIPTION
+      ;;
+    "begin")
+      cat <<DESCRIPTION
+begin <feature branch name>
+
+start a new feature branch which is named ${FEATURE}/<branch>.  the
+feature stem can be changed in vc.sh config file by setting
+FEATURE=<prefix>.
+
+First begin switches to the integration branch: "${INTEGRATION}" to
+use as parent.
+
+A feature branch is a place for new work. It is forked from to the
+intergration trunk "${INTEGRATION}". The integration trunk name can be
+chained by setting INTEGRATION="name" in vc.sh
+
+The feature branches contain development work, while the trunk is a
+merging space for all the branches.
+
+It is advisable to use begin to start branches for all
+non-trivial work.
+DESCRIPTION
+      ;;
+    "end")
+      cat <<DESCRIPTION
+end
+
+from within a feature branch end the feature by switching to
+the trunk and merging the work from the feature branch into
+the trunk.
+
+It does not delete the branch. vc does not typically do
+destructive commands in an automated way.
+
+Must be executed within a feature branch.
+DESCRIPTION
+      ;;
+    "bug")
+      cat <<DESCRIPTION
+bug
+
+start a new bug branch which is named ${BUGFIX}/<branch>.  the bugfix
+stem can be changed in vc.sh config file by setting BUGFIX=<prefix>.
+
+First bugfix switches to the integration branch: "${INTEGRATION}" to
+use as parent.
+
+A bugfix is for coding for a user visible problem. It is forked from
+to the intergration trunk "${INTEGRATION}". The integration trunk name
+can be chained by setting INTEGRATION="name" in vc.sh
+
+The bugfix branches contain user visible bugfix work, while the trunk
+is a merging space for all the branches.
+
+It is advisable to use begin to start branches for all
+non-trivial work.
+DESCRIPTION
+      ;;
+    "close")
+      cat <<DESCRIPTION
+close
+
+from within a bugfix branch close the bugfix by switching to the trunk
+and merging the work from the bugfix branch into the trunk.
+
+It does not delete the branch. vc does not typically do destructive
+commands in an automated way.
+
+Must be executed within a bugfix branch.
+DESCRIPTION
+      ;;
+    "goto")
+      cat <<DESCRIPTION
+goto <none> | <feature|bugfix|trunk>
+
+switch to a feature or bugfix by name without needing to specify the
+stem: what would be git switch feature/example can be vc goto example.
+
+It will search both feature and bugfixes.
+
+With no args it will walk back to the next parent. So from a
+"${FEATURE}/xxx" no arg will switch to the trunk ${INTEGRATION}.
+DESCRIPTION
+      ;;
+    "beta")
+      cat <<DESCRIPTION
+beta <feature> <message>
+
+TODO
+
+DESCRIPTION
+      ;;
+    "tag")
+      cat <<DESCRIPTION
+tag <version> <message"
+
+TODO
+
+DESCRIPTION
+      ;;
+    "tag")
+      cat <<DESCRIPTION
+report
+
+TODO
+DESCRIPTION
+      ;;    
+    "report")
+cat <<DESCRIPTION
+    features
+    fixes
+    syncs
+    merges
+    refactor
+    dev
+DESCRIPTION
+
+
+    esac
+
+
   *)
     $0 history $@
   ;;
