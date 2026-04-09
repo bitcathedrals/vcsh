@@ -1809,6 +1809,9 @@ pending  = commits not in root or branch
 ahead    = show log of commits in branch but not in parent
 behind <trunk> = show upstream or "trunk" changes not in branch
 
+integrate      = integrate changes from trunk into feature branch
+publish        = merge branch work into the intergate trunk
+
 diff <branch>  = diff against parent branch (default) 
 patch          = generate a unified diff
 
