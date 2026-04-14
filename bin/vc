@@ -1628,35 +1628,38 @@ case $1 in
     shift
 
     vc_options $@
-    git_arguments "-no-color"
+    git_arguments -no-color
 
     debug "rb" "entering rb command"
 
     case ${ARGUMENTS[0]} in
       "index")
         # rollback index from HEAD, unstaging no files are damaged
-        rollback_arguments=("--staged")
-
-        git_options "!restore" ":none"
         prompt="staged changes"
+
+        rollback_arguments=("--staged" ${ARGUMENTS[@]:1})
+        git_options "!restore" ":none"
       ;;
       "work")
         # rollback work area discarding any unstaged changes
-        git_options "!restore" ":none"
         prompt="local changes"
+
+        rollback_arguments=${ARGUMENTS[@]:1}
+        git_options "!restore :none"
       ;;
       "merge")
         # rollback merge
+        prompt="merge"
+
         git_options "!merge" ":none"
         rollback_arguments=("--abort")
-        prompt="merge"
       ;;
       *)
         abort "rb" "unknown target: \"${OPTIONS[0]}\" choose index,work,merge" "NA"
       ;;
     esac
 
-    $0 status
+    git status
 
     if ask_yn "rollback $prompt"
     then
