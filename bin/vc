@@ -657,7 +657,7 @@ function git_arguments {
       continue
     fi
 
-    ARGUMENTS+=$arg
+    ARGUMENTS+=($arg)
   done
 
   debug "git_arguments" "end of git_arguments"
