@@ -738,7 +738,8 @@ function git_options {
 
         if echo "$arg" | grep -E '^=' >/dev/null 2>&1
         then
-            spec=`echo $arg | sed -e s,^=,,`
+            spec=`echo $arg | sed -e s,^\=,,`
+            echo "spec is: $spec"
             continue
         fi
 
@@ -1272,13 +1273,7 @@ case $1 in
         vc_options $@
         git_arguments "-diff"
 
-        if [[ ${#ARGUMENTS[@]} -gt 0 ]]
-        then
-            branch=${ARGUMENTS[0]}
-            git_options "=${branch}"
-        else
-            git_options
-        fi
+        git_options
 
         try "git" "diff" "diff against parent or given branch" ${pre_options[@]} ${post_options[@]}
         ;;
@@ -1634,9 +1629,15 @@ case $1 in
 
         verbosity "merge" "merge into ${root}"
 
-        try "git" "switch" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
+        try "git" "publish" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
 
-        try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+        if [[ $? -ne 0 ]]
+        then
+            error "publish" "$?" "could not switch to \"${INEGRATION}\" for merge of ${branch}"
+            exit 1
+        fi
+
+        try "git" "publish" "merge no ff from: ${branch}" merge --no-ff ${branch}
         ;;
     "cat")
         shift
