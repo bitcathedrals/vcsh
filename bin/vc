@@ -1409,49 +1409,59 @@ case $1 in
 
         vc_options $@
         git_arguments -compact
+        git_options :upstream
 
-        if [[ ${#ARGUMENTS[@]} -gt 1 ]]
+        # zero arg fast forward is the default case
+
+        if [[ ${#OPTIONS[@]} -eq 1 ]]
+        then
+            try "git" "get" "do a fetch of the remote" fetch "${ARGUMENTS[0]}"
+
+            if [[ $? -ne 0 ]]
+            then
+                exit $?
+            fi
+        fi
+
+        if [[ ${#OPTIONS[@]} -eq 2 ]]
         then
             remote=${OPTIONS[0]}
             branch=${OPTIONS[1]}
 
-            info "get" "setting remote branch" "setting upstream" "upstream = ${remote} ${branch}"
+            try "git" "get" "fetch remote" fetch "${remote}"
 
-            set_remote_branch $remote $branch
-        else
-            get_remote_branch
-            code=$?
-
-            if [[ $code -ne 0 ]]
+            if [[ $? -ne 0 ]]
             then
-                abort "get" "getting remote branch" "$code" "no remote branch set"
+                exit $?
             fi
+
+            name=`echo "$branch" | tr -s '/' | awk '-F/' '{$1=""; print $0}'`
+
+            echo "name is $name"
+
+            exit 0
+
+            try "git" "get" "checkout branch: $branch as $name" checkout -b "${name}" "${branch}"
         fi
         
-        git_options
-
-        try "git" "get" "fetch commits from $remote" fetch "$remote"
-
-        if [[ $? -eq 0 ]]
+        if [[ $? -ne 0 ]]
         then
-            try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
-        else
             abort "get" "no commits upstream" "NA"
         fi
-
-        if ! ask_yn "fast forward?"
-        then
-            exit 0
-        fi
         
-        try "git" "get" "attempt to fast forward if they don\'t collide" merge --ff-only
+        try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
+        
+        try "git" "get" "attempt to fast forward if there are commits" merge --ff-only
 
         if [[ $? -ne 0 ]]
         then
             if ask_yn "can\'t fast forward, rebase?"
             then
-                # git_options calls root_to_branch
-                $0 rebase "${root}"
+                get_current_branch
+                
+                try "git" "rebase" "rebase ${branch} on ${remote_branch}" rebase "${remote_branch}"
+
+                $0 rebase "${remote_branch}"
             fi
         fi    
         ;;

@@ -12,8 +12,7 @@
 
 * tests
 ** test feature 
-- integrate 
-- publish
+- integrate
 - get
 - push
 
