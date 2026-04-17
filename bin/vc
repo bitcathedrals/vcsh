@@ -763,12 +763,15 @@ function git_options {
     then
         case $type in
             "changes")
-                if [[ "$upstream" == 'true' ]]
+                if [[ -z $spec ]]
                 then
-                    spec="HEAD..@{upstream}"
-                else
-                    root_to_branch
-                    spec="${root}..${branch}"
+                    if [[ "$upstream" == 'true' ]]
+                    then
+                        spec="HEAD..@{upstream}"
+                    else
+                        root_to_branch
+                        spec="${root}..${branch}"
+                    fi
                 fi
                 ;;
             "merging")
@@ -1247,6 +1250,7 @@ case $1 in
         vc_options $@
 
         version=${VC_ARGS[0]}
+
 
         message=${VC_ARGS[1]}
 
