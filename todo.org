@@ -1,19 +1,29 @@
 * TODO for vc
 
 * enhancements
+** get
+- no arg scenario: fast forward
+- 1 arg scenario: use as remote name, do a fetch and then log
+  :upstream, assuming that everything is all setup, offer to fast
+  forward
+- 2 arg scenario: set a upstream, do a upstream fetch with first arg,
+  then offer to create a branch tracking the upstream branch. do
+  bugfix/feature with examples of both, and select one.
+
+* tests
+** test feature 
+- integrate 
+- publish
+- get
+- push
+
+** test pending
 
 * bugs
-
-** commit, when there are no commits (like a feature branch) it breaks silently
-** diff with one args should take a branch like it does, but also a range specification, can detect when arg has ".."
 ** integrate doesnt offer and do rebase 
 
 * doc work
 ** show
-** get
-- no arg scenario: fast forward
-- 1 arg scenario: use as remote name, do a fetch, and then log :upstream
-- 2 arg scenario: set a upstream with arg1 = remote, arg2 = branch, set tracking, and fetch the remote
 ** patch
 ** pending
 ** list
@@ -23,6 +33,5 @@
 ** push
 
 ** cat
-** rb
 
 
