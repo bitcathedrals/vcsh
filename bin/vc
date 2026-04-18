@@ -1411,38 +1411,21 @@ case $1 in
         git_arguments -compact
         git_options :upstream
 
-        # zero arg fast forward is the default case
-
-        if [[ ${#OPTIONS[@]} -eq 1 ]]
-        then
-            try "git" "get" "do a fetch of the remote" fetch "${ARGUMENTS[0]}"
-
-            if [[ $? -ne 0 ]]
-            then
-                exit $?
-            fi
-        fi
-
         if [[ ${#OPTIONS[@]} -eq 2 ]]
         then
             remote=${OPTIONS[0]}
             branch=${OPTIONS[1]}
 
-            try "git" "get" "fetch remote" fetch "${remote}"
-
-            if [[ $? -ne 0 ]]
-            then
-                exit $?
-            fi
-
             try "git" "get" "checkout branch: $branch as $name" checkout -b "${branch}" "${remote}/${branch}"
         fi
-        
+
+        try "git" "get" "fetch remote" fetch "${remote}"
+
         if [[ $? -ne 0 ]]
         then
-            abort "get" "no commits upstream" "NA"
+            exit $?
         fi
-        
+
         try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
         
         try "git" "get" "attempt to fast forward if there are commits" merge --ff-only
@@ -2263,15 +2246,13 @@ DESCRIPTION
 
             "get")
                 cat <<DESCRIPTION             
-get <> | <remote> | <remote> <branch>
+get <> | <remote> <branch>
 
-get: <> = vc get - git fetch
+get: <> = git fetch
 
-get: <remote> = vc get origin - git fetch from the given origin
+get: <remote> <branch> = create a new <branch> from <remote>/<branch>
 
-get: <remote> <branch> = vc get origin feature/new-functions = get a new branch
-
-pull commits/branch from a upstream branch.
+fetch or create and fetch, then pull commits from the upstream.
 
 All scenarios perform a specific operation, then they show the commits
 available, and then attempt a fast forward merge, and a rebase if that
