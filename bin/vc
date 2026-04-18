@@ -1567,17 +1567,12 @@ case $1 in
         ;;
     "down")
         shift
-
         vc_options $@
 
-        git_arguments -compact
-        git_options :upstream
+        get_remote_branch "${MAIN}"
 
-        get_remote_branch
-
-        try "git" "down" "fetch from upstream" fetch $remote
-
-        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]} -${STATUS_LIMIT} ${post_options[@]}
+        try_no_blanks "@git" "down" "pull main branch" pull "${remote}" "${MAIN}:${MAIN}"
+        try_no_blanks "@git" "down" "pull integration trunk" pull ${remote} "${INTEGRATION}:${INTEGRATION}"
         ;;
     "merge")
         shift
