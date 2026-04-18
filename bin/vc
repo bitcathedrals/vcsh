@@ -1435,13 +1435,7 @@ case $1 in
                 exit $?
             fi
 
-            name=`echo "$branch" | tr -s '/' | awk '-F/' '{$1=""; print $0}'`
-
-            echo "name is $name"
-
-            exit 0
-
-            try "git" "get" "checkout branch: $branch as $name" checkout -b "${name}" "${branch}"
+            try "git" "get" "checkout branch: $branch as $name" checkout -b "${branch}" "${remote}/${branch}"
         fi
         
         if [[ $? -ne 0 ]]
@@ -2261,6 +2255,35 @@ DESCRIPTION
             "publish")
                 cat <<DESCRIPTION             
 publish
+
+rebase on "${INTEGRATION}" trunk to get commits not in the
+branch.
+
+DESCRIPTION
+                ;;
+
+            "get")
+                cat <<DESCRIPTION             
+get <> | <remote> | <remote> <branch>
+
+get: <> = vc get - git fetch
+
+get: <remote> = vc get origin - git fetch from the given origin
+
+get: <remote> <branch> = vc get origin feature/new-functions = get a new branch
+
+pull commits/branch from a upstream branch.
+
+All scenarios perform a specific operation, then they show the commits
+available, and then attempt a fast forward merge, and a rebase if that
+fails.
+
+DESCRIPTION
+                ;;
+
+            "put")
+                cat <<DESCRIPTION             
+put <remote> <branch>
 
 rebase on "${INTEGRATION}" trunk to get commits not in the
 branch.
