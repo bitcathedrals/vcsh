@@ -1577,7 +1577,7 @@ case $1 in
 
         try "git" "down" "fetch from upstream" fetch $remote
 
-        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -${STATUS_LIMIT} ${post_options[@]}
+        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]} -${STATUS_LIMIT} ${post_options[@]}
         ;;
     "merge")
         shift
@@ -2210,8 +2210,8 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 down
 
-fetch the remote for the current branch, do a fetch, and show a log of
-the last ten commits upstream.
+fetch the remote for the current branch, and show a log of the last
+ten commits upstream.
 
 DESCRIPTION
                 ;;
