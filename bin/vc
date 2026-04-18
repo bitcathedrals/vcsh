@@ -1577,7 +1577,7 @@ case $1 in
 
         try "git" "down" "fetch from upstream" fetch $remote
 
-        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -10 ${post_options[@]}
+        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -${STATUS_LIMIT} ${post_options[@]}
         ;;
     "merge")
         shift
