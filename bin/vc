@@ -2228,8 +2228,7 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 ahead
 
-Show how many commits ahead the current branch is in comparison to the
-trunk.
+Show commits in current branch and not in the trunk
 
 DESCRIPTION
                 ;;
@@ -2238,7 +2237,7 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 behind
 
-Show how many commits are in the trunk but not in the branch
+Show the commits are in the trunk but not in the branch
 
 DESCRIPTION
                 ;;
@@ -2256,8 +2255,8 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 publish
 
-rebase on "${INTEGRATION}" trunk to get commits not in the
-branch.
+rebase on "${INTEGRATION}" trunk to get commits in the trunk not in
+the branch.
 
 DESCRIPTION
                 ;;
