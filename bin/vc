@@ -1742,7 +1742,7 @@ case $1 in
     "release")
         git flow release finish $VERSION || exit 1
         ;;
-    "help")
+    "help"|"--help")
         if [[ -n $2 ]]
         then
             filter="$2"
@@ -1783,7 +1783,7 @@ dependencies-install  = install into /opt/dependencies a list of packages
 [submodule]
 
 modinit             = initialize and pull all submodules
-modadd <1> <2> <3>  = add a submodule where 1=path 2=branch 3=url (commit after)
+modadd <d> <b> <u>  = add a submodule where d=path b=branch u=url (commit after)
 modpull             = pull the latest version of the module from remote
 modrm  <submodule>  = delete a submodule
 
@@ -1822,10 +1822,10 @@ pull     = merge from trunk to branch
 push     = push changes from branch to trunk
 
 begin <name>  = start feature branch
-end <name>    = close feature branch <name>
+end <name>    = finish a feature branch by merging into $INTEGRATION
 
 bug <name>    = start a bug branch
-close <close> = finish a bugfix merging into develop
+close <close> = finish a bugfix merging into $INTEGRATION
 
 goto          = switch to feature or bugfix branch by name
 
@@ -2025,14 +2025,13 @@ end
 
 options: vc options
 
-from within a feature branch end the feature by switching to
-the trunk and merging the work from the feature branch into
-the trunk.
+from within a feature branch (must be in a feature branch) end the
+feature by switching to the trunk and merging the work from the
+feature branch into the trunk.
 
 It does not delete the branch. vc does not typically do
 destructive commands in an automated way.
 
-Must be executed within a feature branch.
 DESCRIPTION
                 ;;
             "bug")
@@ -2061,6 +2060,8 @@ DESCRIPTION
             "close")
                 cat <<DESCRIPTION
 close
+
+options: vc options
 
 from within a bugfix branch close the bugfix by switching to the trunk
 and merging the work from the bugfix branch into the trunk.
@@ -2188,17 +2189,23 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 down
 
-fetch the remote for the current branch, and show a log of the last
-ten commits upstream.
+options: vc options
+
+fetch the remote for ${INTEGRATION} and ${TRUNK} for the current
+branch, and show a log of the last ten or user specified number
+of commits upstream.
 
 DESCRIPTION
                 ;;
 
             "history")
                 cat <<DESCRIPTION             
+options: git options, aguments, vc options
+
 history
 
-show log history of the current branch, using standard options.
+show log history of the current branch, using standard
+options. History goes back to the last parent.
 
 DESCRIPTION
                 ;;
