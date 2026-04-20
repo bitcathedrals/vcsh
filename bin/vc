@@ -1046,7 +1046,7 @@ case $1 in
             abort "modinit" "update failed cleanup required." "$?"
         fi
 
-        info "modsync" "update $path" "update ok. please remember to test and commit."
+        info "modinit" "update $path" "update ok. please remember to test and commit."
         ;;
     "modpull")
         if ! try "git" "modpull" "update all the submodules" submodule update --remote --merge --recursive
@@ -1958,12 +1958,12 @@ DESCRIPTION
                 cat <<DESCRIPTION
 dependencies-upgrade
 
-Uprade everything in the /opt/dependencies
+Uprade everything in the /opt/dependencies.
 DESCRIPTION
                 ;;
             "modinit")
                 cat <<DESCRIPTION
-modinit <module>
+Initialize and pull all the modules in the repository.
 
 DESCRIPTION
                 ;;
@@ -1981,19 +1981,11 @@ the only thing being done is fast forward pulls.
 DESCRIPTION
                 ;;
 
-            "modsync")
+            "modpull")
                 cat <<DESCRIPTION
-modsync
+modpull
 
 git pull and pull all the submodules to update
-DESCRIPTION
-                ;;
-            "modupdate")
-                cat <<DESCRIPTION
-
-modupdate  <module>
-
-git pull a single module
 DESCRIPTION
                 ;;
             "modrm")
@@ -2001,13 +1993,6 @@ DESCRIPTION
 modrm <module>
 
 delete modmodule <module>
-DESCRIPTION
-                ;;
-            "modall")
-                cat <<DESCRIPTION
-modrm <module>
-
-init and update all modules
 DESCRIPTION
                 ;;
             "begin")
