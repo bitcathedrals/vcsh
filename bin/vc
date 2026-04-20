@@ -1021,53 +1021,41 @@ case $1 in
     #
     # modules
     #
-    "modinit")
-        shift
-
-        git submodule init $1
-        git submodule update --init $1
-        ;;
     "modadd")
         shift
 
-        if [[ -z "$1" || -z "$2" || -z "$3" ]]
+        path=$1
+        branch=$2
+        url=$3
+
+        if [[ -z "$path" || -z "$branch" || -z "$url" ]]
         then
-            abort "modadd" "submodule command requires <repo> <branch> <local>" "NA"
+            abort "modadd" "submodule command requires  <local dir> <branch> <repo>" "NA"
         fi
 
-        if git submodule add -b $2 $1 $3
+        if ! try "git" "modadd" "add a module"  git submodule add -b $branch $url $path
         then
-            echo "vcsh: add ok. please remember to commit"
-        else
-            echo "vcsh: add failed. cleanup required."
-            exit 1
+            abort "modadd" "vcsh: add failed. cleanup required." "$?"
         fi
+
+        info "modadd" "vc modadd add ok. please remember to commit" ""
         ;;
-    "modsync")
-        if git pull --recurse-submodules
+    "modinit")
+        if ! try "git" "modinit" "update all the submodules" submodule update --init --recursive
         then
-            echo "vcsh: update ok. please remember to test and commit."
-        else
-            echo "vcsh: update failed. cleanup required."
-            exit 1
+            abort "modinit" "update failed cleanup required." "$?"
         fi
+
+        info "modsync" "update $path" "update ok. please remember to test and commit."
         ;;
-    "modupdate")
-        shift
+    "modpull")
+        if ! try "git" "modpull" "update all the submodules" submodule update --remote --merge --recursive
 
-        if [[ -z $1 ]]
         then
-            echo "vcsh: update a submodule requires a submodule path"
-            exit 1
+            abort "modpull" "update pull cleanup required." "$?"
         fi
 
-        if git submodule update --remote $1
-        then
-            echo "vcsh: update ok. please remember to test and commit."
-        else
-            echo "vcsh: update failed. cleanup required."
-            exit 1
-        fi
+        info "modpull" "pull from remote all" "pull ok. please remember to test and commit."
         ;;
     "modrm")
         shift
@@ -1090,11 +1078,6 @@ case $1 in
         else
             echo "vcsh: removal of $1 failed. Repo is in a unknown state"
         fi
-        ;;
-    "modall")
-        echo "all submodule updating..."
-        git submodule update --init --recursive || exit 1
-        echo "all submodule update done."
         ;;
     #
     # feature branches
@@ -1800,11 +1783,9 @@ dependencies-install  = install into /opt/dependencies a list of packages
 [submodule]
 
 modinit             = initialize and pull all submodules
-modadd <1> <2> <3>  = add a submodule where 1=repo 2=branch 3=localDir (commit after)
-modupdate <module>  = pull the latest version of the module
-modsync             = pull and sync all modules to checked out commits
+modadd <1> <2> <3>  = add a submodule where 1=path 2=branch 3=url (commit after)
+modpull             = pull the latest version of the module from remote
 modrm  <submodule>  = delete a submodule
-modall              = update all submodules
 
 [version control]
 
@@ -1869,8 +1850,12 @@ HELP
                 cat <<DESCRIPTION
 tools-zshrc
 
-Install the vc version of .zshrc into .zshrc contains many functions
-and alises and is the backbone of tools-custom and tools-prompt.
+Install the vc version of .zshrc into .zshrc - zshrc contains
+the kernel of the shell tools, and contains numerous functions
+and aliass that make development easier and less error prone.
+
+The source of the shell script may be found in ${VCSH_SHELL}zshrc.rc
+
 
 DESCRIPTION
                 ;;
@@ -1878,8 +1863,11 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-custom
 
-Install a zshenv script that spins up ssh-agent if needed, sets environment variables
-like path, cleans up the path, deduping and sorting.
+The zshrc.custom script sets up the environment according to how I
+setup my code. It constructs PATH, and numerous other critical
+environmental tools, and also fires off resources, like trying to
+determine if SSH is running and launches it if missing. the script may
+be found in ${VCSH_SHELL}.
 
 DESCRIPTION
                 ;;
@@ -1895,7 +1883,18 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-brew-init
 
-For MacOS install homebrew core into ~/tools creating dirs if needed.
+For MacOS install homebrew core into /opt/homebrew creating dirs if needed.
+
+The homebrew project provides a large number of Open Source packages
+on MacOS. tools-brew-init installs homebrew into "/opt/homebrew" for
+regular tools.
+
+This is not directly related to Version Control, however breaking it
+out into a seperate script would IMHO fragment a good and cohesive
+toolbox into tiny projects.
+
+Homebrew commands do fit into the general mission of vcsh by providing
+a portable environment for tools.
 
 DESCRIPTION
                 ;;
@@ -1903,7 +1902,7 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-brew-ugprade
 
-Upgrade all of the homebrew packages.
+Upgrade all of the homebrew packages in /opt/homebrew
 
 DESCRIPTION
                 ;;
@@ -1913,13 +1912,18 @@ tools-brew-install <package>...
 
 install packages into homebrew using the detected architecture.
 
+invoking homebrew from /opt/homebrew requires a special invocation so
+run the install command with a user supplied list of packages.
+
 DESCRIPTION
                 ;;
             "tools-brew-rebuild")
                 cat <<DESCRIPTION
 tools-brew-rebuild <package>....
 
-rebuild/reinstall all the packages in the repository.
+rebuild/reinstall all the packages in the repository. This is for a
+situation that is not a upgrade, but just a recompile.  If the compile
+fails the homebrew install might break.
 
 DESCRIPTION
                 ;;
@@ -1936,33 +1940,44 @@ install to /opt/dependencies/
 
 DESCRIPTION
                 ;;
+            "dependencies-install")
+                cat <<DESCRIPTION
+dependencies-install <package>...
+
+dependencies is a homebrew installation in /opt/dependencies
+for basing user programs off for libraries and tools.
+
+The problem with using homebrew in a single repository is that when
+installing and upgrading the repository things break very often.
+
+This repository is for building things like python off of so an
+upgrade doesnt wreck a critical tool.
+DESCRIPTION
+                ;;
             "dependencies-upgrade")
                 cat <<DESCRIPTION
 dependencies-upgrade
 
-Uprade everything in the /opt/dependencies/
-DESCRIPTION
-                ;;
-            "dependencies-install")
-                cat <<DESCRIPTION
-
-dependencies-install <package>...
-
-      Install 
+Uprade everything in the /opt/dependencies
 DESCRIPTION
                 ;;
             "modinit")
                 cat <<DESCRIPTION
 modinit <module>
 
-initialize a submodule <module> and pull it's code.
 DESCRIPTION
                 ;;
             "modadd")
                 cat <<DESCRIPTION
-modinit <module>
+modadd <path> <branch> <url> 
 
-initialize a submodule <module> and pull it's code.
+add a new a submodule at <path> at <branch> from <url>.  Note:
+submodules are extremely difficult to fix if something non-trivial is
+attempted with a submodule, or the submodule is removed.
+
+The best use case for submodules is for third party development whe
+the only thing being done is fast forward pulls.
+
 DESCRIPTION
                 ;;
 
