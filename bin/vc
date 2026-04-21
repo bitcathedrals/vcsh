@@ -1822,24 +1822,20 @@ modrm  <submodule>  = delete a submodule
 status            = show status of repository
 verify            = show log with signatures for verification
 commit            = no arg, list numbered commits, +<num> print truncated SHA1
-show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
+show...           num convert log line numbers to the commit SHA , see man for help.
 
-history  = show commit history
-pending  = commits not in root or branch
-ahead    = show log of commits in branch but not in parent
-behind <trunk> = show upstream or "trunk" changes not in branch
+history           = show commit history
+pending           = commits not in root or branch
+ahead             = show log of commits in branch but not in parent
+behind            = show upstream or "trunk" changes not in branch
 
-integrate      = integrate changes from trunk into feature branch
-publish        = merge branch work into the intergate trunk
+integrate         = integrate changes from trunk into feature branch
+publish           = merge branch work into the intergate trunk
 
-diff <branch>  = diff against parent branch (default) 
-patch          = generate a unified diff
+diff <branch>     = diff against parent branch (default) 
+patch             = generate a unified diff
 
-rb       = rollback to index, work, merge
-
-[repository commands]
-
-get <branch> <upstream> = checkout a upstream branch
+rb                = rollback to index, work, merge
 
 [workflow]
 
