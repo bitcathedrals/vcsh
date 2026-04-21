@@ -2255,6 +2255,16 @@ Show commits in current branch and not in the trunk
 DESCRIPTION
                 ;;
 
+            "rebase")
+                cat <<DESCRIPTION             
+rebase <from>
+
+options: git options, arguments
+
+Rebase the <from> branch onto the current branch.
+
+DESCRIPTION
+                ;;
             "merge")
                 cat <<DESCRIPTION             
 merge <none> | merge <target>
@@ -2290,8 +2300,12 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 integrate
 
-rebase on "${INTEGRATION}" trunk to get commits not in the
-branch.
+rebase from "${INTEGRATION}" trunk into the current branch.
+
+This must be run from inside a feature branch.
+
+This command is designed to merge changes from the trunk into
+the current feature branch.
 
 DESCRIPTION
                 ;;
