@@ -1558,27 +1558,31 @@ case $1 in
 
         vc_options $@
 
-        if [[ ${#VC_ARGS[@]} -gt 0 ]]
+        if [[ ${#VC_ARGS[@]} -eq 1 ]]
         then
             get_current_branch
-            root=$current_branch
-            branch=${VC_ARGS[0]}
+
+            merge_to=$current_branch
+            merge_from=${VC_ARGS[0]}
         else
             root_to_branch
+            
+            merge_to="${root}"
+            merge_from="${branch}"
 
-            try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
+            try "git" "merge" "switch to the merge target: ${merge_to} from  merge source ${merge_from}" switch ${merge_to}
 
             if [[ $? -ne 0 ]]
             then
-                abort "merge" "cannot switch to branch \"${root}\"" "$?"
+                abort "merge" "cannot switch to merge source: ${merge_to}" "$?"
             fi
         fi
 
-        if ask_yn "merge $branch into \"$root\""
+        if ask_yn "merge $merge_from into ${merge_to}"
         then
-            verbosity "merge" "merging ${branch}"
+            verbosity "merge" "merging ${merge_from} into ${merge_to}"
 
-            try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+            try "git" "merge" "merge no ff from: ${merge_from}" merge --no-ff ${merge_from}
         else
             abort "merge" "answer to merge is no" "NA"
         fi
@@ -1610,7 +1614,7 @@ case $1 in
             abort "publish" "cant merge below ${MAIN}, no branch is below ${MAIN}" "NA"
         fi
 
-        verbosity "merge" "merge into ${root}"
+        verbosity "publish" "merge into ${root}"
 
         try "git" "publish" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
 
@@ -2182,7 +2186,6 @@ doesn't show anything.
 
 DESCRIPTION
                 ;;
-
             "commit")
                 cat <<DESCRIPTION
 commit <none> | +<number> | +<number> +<number>
@@ -2197,12 +2200,14 @@ giving a +<number> single option returns the SHA for that numbered
 commit. This allows the production of commit SHA for commands like
 show and diff.
 
+
 two +<number> +<number> args produces a range <sha>..<sha>.
 
-These can be incorperated into commands with backtick operator.  for
-example: vc show `vc commit +4`
+These can be incorperated into commands with backtick operator. For
+example: vc show vc commit +4
 
-DESCRIPTION 
+DESCRIPTION
+                
                 ;;
             "up")
                 cat <<DESCRIPTION             
@@ -2246,6 +2251,27 @@ ahead
 options: git options, arguments
 
 Show commits in current branch and not in the trunk
+
+DESCRIPTION
+                ;;
+
+            "merge")
+                cat <<DESCRIPTION             
+merge <none> | merge <target>
+
+options: git options
+
+Perform a merge from "from" into "target". If there
+is a single argument it is used as the target of
+the merge.
+
+if no argument is specified the parent of the current
+branch is used as the target and the current branch
+is the source.
+
+First merge from and to are established, it performs
+a switch to the target branch, and then completes
+the merge.
 
 DESCRIPTION
                 ;;
