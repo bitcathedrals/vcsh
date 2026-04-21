@@ -1832,7 +1832,7 @@ behind            = show upstream or "trunk" changes not in branch
 integrate         = integrate changes from trunk into feature branch
 publish           = merge branch work into the intergate trunk
 
-diff <branch>     = diff against parent branch (default) 
+diff <none> | =<commit> | =<commit>..<commit>  = diff latest commit, specific commit, and commit range
 patch             = generate a unified diff
 
 rb                = rollback to index, work, merge
