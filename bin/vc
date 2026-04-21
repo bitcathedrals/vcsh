@@ -2158,14 +2158,18 @@ DESCRIPTION
                 ;;
             "diff")
                 cat <<DESCRIPTION             
-diff [branch]
+diff
 
 options: vc options, git arguments, git options
 
 
-generate a diff of current branch against a trunk, or
-with a argument diff from HEAD to that branch.
+generate a diff with the same revision content
+as history. passing an argument of a range 
+of commits like:
 
+vc diff =f3123f..3133a
+
+will diff that range
 DESCRIPTION
                 ;;
             "verify")
