@@ -739,7 +739,6 @@ function git_options {
         if echo "$arg" | grep -E '^=' >/dev/null 2>&1
         then
             spec=`echo $arg | sed -e s,^\=,,`
-            echo "spec is: $spec"
             continue
         fi
 
@@ -758,6 +757,14 @@ function git_options {
     if [[ "$OP" == "cat-file" ]]
     then
         type='local'
+    fi
+
+    if [[ "$OP" == "show" ]]
+    then
+        if [[ -z $spec ]]
+        then
+            type='local'
+        fi
     fi
 
     if [[ -z $spec ]]
@@ -785,7 +792,6 @@ function git_options {
                 fi
                 ;;
             "local")
-                spec=""
                 ;;
             *)
                 abort "git_options" "type not specified" "NA"
@@ -1371,23 +1377,17 @@ case $1 in
         shift
 
         vc_options $@
-
         git_arguments -compact
+        git_options "!show"
 
-        if [[ ${#ARGUMENTS[@]} -eq 0 ]]
+        if [[ ${#OPTIONS[@]} -eq 0 ]]
         then
-            git_options "!show"
             try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
-
             exit $?
         fi
         
         for entry in ${OPTIONS[@]}
         do
-            commit=`echo "${entry}" | sed  -e 's,^+,,g'`
-
-            git_options "=$commit" "!show"
-
             try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
         done
         ;;
