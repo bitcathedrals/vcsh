@@ -1400,12 +1400,25 @@ case $1 in
             branch=${OPTIONS[1]}
 
             try "git" "get" "checkout branch: $branch as $name" checkout -b "${branch}" "${remote}/${branch}"
+
+            if [[ $? -ne 0 ]]
+            then
+               error "get" $? "error trying to checkout from remote: $remote and branch ${branch}"
+               exit 1
+            fi
+
+            exit 0
         fi
+
+        require_feature_branch
+
+        get_remote_branch
 
         try "git" "get" "fetch remote" fetch "${remote}"
 
         if [[ $? -ne 0 ]]
         then
+            error "get" $? "error trying to fetch from remote: ${remote}"
             exit $?
         fi
 
@@ -2269,12 +2282,22 @@ DESCRIPTION
 
             "get")
                 cat <<DESCRIPTION             
-get <none> 
 get <remote> <branch>
+get <none> 
 
-All scenarios perform a specific operation, then they show the commits
-available, and then attempt a fast forward merge, and a rebase if that
-fails.
+get with two arguments, remote and branch, will checkout a local
+branch from the "$remote/$branch". It will exit after that.
+
+With no args it will require you to be in a feature branch,
+it will look up the remote in the feature branch, perform a fetch
+on the remote.
+
+With commits from upstream it will attempt a fast forward only
+remote, and if that fails ask to try a rebase.
+
+This command is intended for collaboration on a feature branch,
+to make getting changes added, via fast forward or rebase, easy,
+and with minimal merges that produce a commit object.
 
 DESCRIPTION
                 ;;
