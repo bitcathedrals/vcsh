@@ -1765,6 +1765,9 @@ help [keyword]      = either print this list of commands or with arg
                       search for a set of commands
 man <command>       = get detailed description of a single command
 
+man options         = see the options for all commands. applicable option sets
+                      are listed in the man help for each command.
+
 [zsh tools commands]
 
 tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
