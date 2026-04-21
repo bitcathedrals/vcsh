@@ -1537,8 +1537,8 @@ case $1 in
 
         get_remote_branch "${MAIN}"
 
-        try_no_blanks "@git" "down" "pull main branch" pull "${remote}" "${MAIN}:${MAIN}"
-        try_no_blanks "@git" "down" "pull integration trunk" pull ${remote} "${INTEGRATION}:${INTEGRATION}"
+        try_no_blanks "@git" "down" "pull main branch" pull --ff-only "${remote}" "${MAIN}:${MAIN}"
+        try_no_blanks "@git" "down" "pull integration trunk" pull --ff-only "${remote}" "${INTEGRATION}:${INTEGRATION}"
         ;;
     "merge")
         shift
@@ -1592,14 +1592,18 @@ case $1 in
 
         root_to_branch
 
+        if [[ "${branch}" == "${MAIN}" ]]
+        then
+            abort "publish" "cant merge below ${MAIN}, no branch is below ${MAIN}" "NA"
+        fi
+
         verbosity "merge" "merge into ${root}"
 
         try "git" "publish" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
 
         if [[ $? -ne 0 ]]
         then
-            error "publish" "$?" "could not switch to \"${INEGRATION}\" for merge of ${branch}"
-            exit 1
+            abort "publish" "publish" "could not switch to \"${INEGRATION}\" for merge of ${branch}" $?
         fi
 
         try "git" "publish" "merge no ff from: ${branch}" merge --no-ff ${branch}
@@ -2146,7 +2150,7 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 verify: vc options, git arguments, git options
 
-using default options show signatures for commits
+Using default options show signatures for commits and check them
 
 DESCRIPTION
                 ;;
@@ -2165,22 +2169,33 @@ DESCRIPTION
 
             "commit")
                 cat <<DESCRIPTION
-commit <> | <number>
+commit <none> | +<number> | +<number> +<number>
 
-show commits with numbering, and select commit by the number, which
-generates the SHA for that commit. 
+options: vc options, arguments
 
-It may seem like this can be accomplished via cut and paste, but on a
-server over ssh this sort of thing can be clunky.
+<none> no arg generates a list of the commits with vc options,
+applicable that is numbered. commit SHA values are generated for the
+commit number by one and two arg calls.
 
-DESCRIPTION
+giving a +<number> single option returns the SHA for that numbered
+commit. This allows the production of commit SHA for commands like
+show and diff.
+
+two +<number> +<number> args produces a range <sha>..<sha>.
+
+These can be incorperated into commands with backtick operator.  for
+example: vc show `vc commit +4`
+
+DESCRIPTION 
                 ;;
-
             "up")
                 cat <<DESCRIPTION             
 up
 
-push up ${INTEGRATION} and ${MAIN} trunks, and also tags.
+options: vc options
+
+push up ${INTEGRATION} and ${MAIN} trunks, and also tags to default
+remote.
 
 DESCRIPTION
                 ;;
@@ -2191,16 +2206,15 @@ down
 
 options: vc options
 
-fetch the remote for ${INTEGRATION} and ${TRUNK} for the current
-branch, and show a log of the last ten or user specified number
-of commits upstream.
+pull to fetch and merge fast forward only ${MAIN} and ${INTEGRATION}
+the remote of ${MAIN}.
 
 DESCRIPTION
                 ;;
 
             "history")
                 cat <<DESCRIPTION             
-options: git options, aguments, vc options
+options: git options, arguments
 
 history
 
@@ -2213,6 +2227,8 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 ahead
 
+options: git options, arguments
+
 Show commits in current branch and not in the trunk
 
 DESCRIPTION
@@ -2221,6 +2237,8 @@ DESCRIPTION
             "behind")
                 cat <<DESCRIPTION             
 behind
+
+options: git options, arguments
 
 Show the commits are in the trunk but not in the branch
 
@@ -2235,26 +2253,21 @@ branch.
 
 DESCRIPTION
                 ;;
-
             "publish")
                 cat <<DESCRIPTION             
 publish
 
-rebase on "${INTEGRATION}" trunk to get commits in the trunk not in
-the branch.
+merge into ${INTEGRATION} development feature or bugfix.  You must be
+in a feature,bugfix branch, or ${INTEGRATION} trunk for this command
+to work properly.
 
 DESCRIPTION
                 ;;
 
             "get")
                 cat <<DESCRIPTION             
-get <> | <remote> <branch>
-
-get: <> = git fetch
-
-get: <remote> <branch> = create a new <branch> from <remote>/<branch>
-
-fetch or create and fetch, then pull commits from the upstream.
+get <none> 
+get <remote> <branch>
 
 All scenarios perform a specific operation, then they show the commits
 available, and then attempt a fast forward merge, and a rebase if that
