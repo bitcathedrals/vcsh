@@ -1012,10 +1012,14 @@ case $1 in
         ;;
 
     "dependencies-install")
-        shift
-
         eval $(${DEP_BREW}bin/brew shellenv)
+
         $VCSH_ARCH_COMMAND brew install $*
+        ;;
+    "dependencies-rebuild")
+        eval $(${DEP_BREW}bin/brew shellenv)
+
+        $VCSH_ARCH_COMMAND brew list | xargs arch "-${VCSH_ARCH}"  brew reinstall
         ;;
 
     #
@@ -1803,6 +1807,8 @@ tools-brew-rebuild  = rebuild packages in /opt/homebrew
 dependencies-init     = initialize /opt/dependencies for stable and minimal deps to compile against
 dependencies-upgrade  = upgrade /opt/dependencies 
 dependencies-install  = install into /opt/dependencies a list of packages
+dependencies--rebuild  = rebuild packages in /opt/homebrew
+
 
 [submodule]
 
