@@ -1436,7 +1436,7 @@ case $1 in
 
         if [[ $? -ne 0 ]]
         then
-            if ask_yn "can\'t fast forward, rebase?"
+            if ask_yn "cannot fast forward, rebase?"
             then
                 get_current_branch
                 
