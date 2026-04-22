@@ -1,36 +1,28 @@
 * TODO for vc
 
-* enhancements
-** get
-- no arg scenario: fast forward
-- 1 arg scenario: use as remote name, do a fetch and then log
-  :upstream, assuming that everything is all setup, offer to fast
-  forward
-- 2 arg scenario: set a upstream, do a upstream fetch with first arg,
-  then offer to create a branch tracking the upstream branch. do
-  bugfix/feature with examples of both, and select one.
+* key features
+** finish reworking vcsh.el
+- no arg commands works
+- arg commands work
 
-* tests
+* enhancements
+** since git difftool looks like a epic fail, try generating a diff with git diff, and using diff mode to view it.
+- fix the colors for diff mode
+
+* testing
 ** test feature 
 - integrate
-- get
-- push
+- merge
+- rebase
 
 ** test pending
-
-* bugs
-** integrate doesnt offer and do rebase 
 
 * doc work
 ** show
 ** patch
-** pending
 ** list
 
-** merge
 ** pull
-** push
-
 ** cat
 
 
