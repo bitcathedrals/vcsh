@@ -1301,6 +1301,10 @@ case $1 in
                 ;;
         esac
 
+        get_remote_branch
+
+        info "status" "branches" "current_branch: $current_branch remote: $remote upstream branch: $remote_branch"
+ 
         try_no_blanks git "status:branches" "git banch" branch -vv $color
 
         output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
