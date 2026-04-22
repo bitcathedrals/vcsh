@@ -1,13 +1,6 @@
 * TODO for vc
 
 * key features
-** finish reworking vcsh.el
-- no arg commands works
-- arg commands work
-
-* enhancements
-** since git difftool looks like a epic fail, try generating a diff with git diff, and using diff mode to view it.
-- fix the colors for diff mode
 
 * testing
 ** test feature 
@@ -15,14 +8,17 @@
 - merge
 - rebase
 
-** test pending
-
 * doc work
-** show
 ** patch
 ** list
-
-** pull
 ** cat
+** get prototype of documentation and README.md working on Mac
+to verify that the toolchain works.
 
+* org mode documentation
+- sketch the main points in a document structure
+- start filling in the meat
+
+* README.md documentation
+- convert to markdown from org 
 
