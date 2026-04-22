@@ -146,7 +146,7 @@ function warning {
     warning=$1
     shift
 
-    echo >/dev/stderr "vc: [${task}] $describe -> $warning"
+    echo >/dev/stderr "vc: WARNING [${task}] $describe -> $warning"
 }
 
 #
