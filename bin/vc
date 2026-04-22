@@ -1436,9 +1436,7 @@ case $1 in
             then
                 get_current_branch
                 
-                try "git" "rebase" "rebase ${branch} on ${remote_branch}" rebase "${remote_branch}"
-
-                $0 rebase "${remote_branch}"
+                try "git" "rebase" "rebase ${branch} on ${remote_branch}" rebase "@{u}"
             fi
         fi    
         ;;
