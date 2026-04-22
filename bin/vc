@@ -1303,7 +1303,7 @@ case $1 in
 
         get_remote_branch
 
-        info "status" "branches" "current_branch: $current_branch remote: $remote upstream branch: $remote_branch"
+        info "status" "branches" "current_branch: \"$current_branch\";  remote: \"$remote\"; upstream branch: \"$remote_branch\";"
  
         try_no_blanks git "status:branches" "git banch" branch -vv $color
 
