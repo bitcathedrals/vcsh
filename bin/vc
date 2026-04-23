@@ -146,7 +146,7 @@ function warning {
     warning=$1
     shift
 
-    echo >/dev/stderr "vc: [${task}] $describe -> $warning"
+    echo >/dev/stderr "vc: WARNING [${task}] $describe -> $warning"
 }
 
 #
@@ -739,7 +739,6 @@ function git_options {
         if echo "$arg" | grep -E '^=' >/dev/null 2>&1
         then
             spec=`echo $arg | sed -e s,^\=,,`
-            echo "spec is: $spec"
             continue
         fi
 
@@ -758,6 +757,14 @@ function git_options {
     if [[ "$OP" == "cat-file" ]]
     then
         type='local'
+    fi
+
+    if [[ "$OP" == "show" ]]
+    then
+        if [[ -z $spec ]]
+        then
+            type='local'
+        fi
     fi
 
     if [[ -z $spec ]]
@@ -785,7 +792,6 @@ function git_options {
                 fi
                 ;;
             "local")
-                spec=""
                 ;;
             *)
                 abort "git_options" "type not specified" "NA"
@@ -1012,62 +1018,54 @@ case $1 in
         ;;
 
     "dependencies-install")
-        shift
-
         eval $(${DEP_BREW}bin/brew shellenv)
+
         $VCSH_ARCH_COMMAND brew install $*
+        ;;
+    "dependencies-rebuild")
+        eval $(${DEP_BREW}bin/brew shellenv)
+
+        $VCSH_ARCH_COMMAND brew list | xargs arch "-${VCSH_ARCH}"  brew reinstall
         ;;
 
     #
     # modules
     #
-    "modinit")
-        shift
-
-        git submodule init $1
-        git submodule update --init $1
-        ;;
     "modadd")
         shift
 
-        if [[ -z "$1" || -z "$2" || -z "$3" ]]
+        path=$1
+        branch=$2
+        url=$3
+
+        if [[ -z "$path" || -z "$branch" || -z "$url" ]]
         then
-            abort "modadd" "submodule command requires <repo> <branch> <local>" "NA"
+            abort "modadd" "submodule command requires  <local dir> <branch> <repo>" "NA"
         fi
 
-        if git submodule add -b $2 $1 $3
+        if ! try "git" "modadd" "add a module"  git submodule add -b $branch $url $path
         then
-            echo "vcsh: add ok. please remember to commit"
-        else
-            echo "vcsh: add failed. cleanup required."
-            exit 1
+            abort "modadd" "vcsh: add failed. cleanup required." "$?"
         fi
+
+        info "modadd" "vc modadd add ok. please remember to commit" ""
         ;;
-    "modsync")
-        if git pull --recurse-submodules
+    "modinit")
+        if ! try "git" "modinit" "update all the submodules" submodule update --init --recursive
         then
-            echo "vcsh: update ok. please remember to test and commit."
-        else
-            echo "vcsh: update failed. cleanup required."
-            exit 1
+            abort "modinit" "update failed cleanup required." "$?"
         fi
+
+        info "modinit" "update $path" "update ok. please remember to test and commit."
         ;;
-    "modupdate")
-        shift
+    "modpull")
+        if ! try "git" "modpull" "update all the submodules" submodule update --remote --merge --recursive
 
-        if [[ -z $1 ]]
         then
-            echo "vcsh: update a submodule requires a submodule path"
-            exit 1
+            abort "modpull" "update pull cleanup required." "$?"
         fi
 
-        if git submodule update --remote $1
-        then
-            echo "vcsh: update ok. please remember to test and commit."
-        else
-            echo "vcsh: update failed. cleanup required."
-            exit 1
-        fi
+        info "modpull" "pull from remote all" "pull ok. please remember to test and commit."
         ;;
     "modrm")
         shift
@@ -1090,11 +1088,6 @@ case $1 in
         else
             echo "vcsh: removal of $1 failed. Repo is in a unknown state"
         fi
-        ;;
-    "modall")
-        echo "all submodule updating..."
-        git submodule update --init --recursive || exit 1
-        echo "all submodule update done."
         ;;
     #
     # feature branches
@@ -1308,6 +1301,10 @@ case $1 in
                 ;;
         esac
 
+        get_remote_branch
+
+        info "status" "branches" "current_branch: \"$current_branch\";  remote: \"$remote\"; upstream branch: \"$remote_branch\";"
+ 
         try_no_blanks git "status:branches" "git banch" branch -vv $color
 
         output=`try_no_blanks "@git" "status" "ls-files" ls-files --others --exclude-standard`
@@ -1384,23 +1381,17 @@ case $1 in
         shift
 
         vc_options $@
-
         git_arguments -compact
+        git_options "!show"
 
-        if [[ ${#ARGUMENTS[@]} -eq 0 ]]
+        if [[ ${#OPTIONS[@]} -eq 0 ]]
         then
-            git_options "!show"
             try git "show" "show last commit" ${pre_options[@]} ${post_options[@]}
-
             exit $?
         fi
         
         for entry in ${OPTIONS[@]}
         do
-            commit=`echo "${entry}" | sed  -e 's,^+,,g'`
-
-            git_options "=$commit" "!show"
-
             try git "show" "show numbered commit" ${pre_options[@]} ${post_options[@]}
         done
         ;;
@@ -1409,49 +1400,47 @@ case $1 in
 
         vc_options $@
         git_arguments -compact
+        git_options :upstream
 
-        if [[ ${#ARGUMENTS[@]} -gt 1 ]]
+        if [[ ${#OPTIONS[@]} -eq 2 ]]
         then
             remote=${OPTIONS[0]}
             branch=${OPTIONS[1]}
 
-            info "get" "setting remote branch" "setting upstream" "upstream = ${remote} ${branch}"
+            try "git" "get" "checkout branch: $branch as $name" checkout -b "${branch}" "${remote}/${branch}"
 
-            set_remote_branch $remote $branch
-        else
-            get_remote_branch
-            code=$?
-
-            if [[ $code -ne 0 ]]
+            if [[ $? -ne 0 ]]
             then
-                abort "get" "getting remote branch" "$code" "no remote branch set"
+               error "get" $? "error trying to checkout from remote: $remote and branch ${branch}"
+               exit 1
             fi
-        fi
-        
-        git_options
 
-        try "git" "get" "fetch commits from $remote" fetch "$remote"
-
-        if [[ $? -eq 0 ]]
-        then
-            try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
-        else
-            abort "get" "no commits upstream" "NA"
-        fi
-
-        if ! ask_yn "fast forward?"
-        then
             exit 0
         fi
-        
-        try "git" "get" "attempt to fast forward if they don\'t collide" merge --ff-only
+
+        require_feature_branch
+
+        get_remote_branch
+
+        try "git" "get" "fetch remote" fetch "${remote}"
 
         if [[ $? -ne 0 ]]
         then
-            if ask_yn "can\'t fast forward, rebase?"
+            error "get" $? "error trying to fetch from remote: ${remote}"
+            exit $?
+        fi
+
+        try_no_blanks "@git" "get" "show commits in upstream" ${pre_options[@]} "-${STATUS_LIMIT}" ${post_options[@]} 
+        
+        try "git" "get" "attempt to fast forward if there are commits" merge --ff-only
+
+        if [[ $? -ne 0 ]]
+        then
+            if ask_yn "cannot fast forward, rebase?"
             then
-                # git_options calls root_to_branch
-                $0 rebase "${root}"
+                get_current_branch
+                
+                try "git" "rebase" "rebase ${branch} on ${remote_branch}" rebase "@{u}"
             fi
         fi    
         ;;
@@ -1563,44 +1552,43 @@ case $1 in
         ;;
     "down")
         shift
-
         vc_options $@
 
-        git_arguments -compact
-        git_options :upstream
+        get_remote_branch "${MAIN}"
 
-        get_remote_branch
-
-        try "git" "down" "fetch from upstream" fetch $remote
-
-        try_no_blanks "@git" "down" "show upstream commits" ${pre_options[@]}  -10 ${post_options[@]}
+        try_no_blanks "@git" "down" "pull main branch" pull --ff-only "${remote}" "${MAIN}:${MAIN}"
+        try_no_blanks "@git" "down" "pull integration trunk" pull --ff-only "${remote}" "${INTEGRATION}:${INTEGRATION}"
         ;;
     "merge")
         shift
 
         vc_options $@
 
-        if [[ ${#VC_ARGS[@]} -gt 0 ]]
+        if [[ ${#VC_ARGS[@]} -eq 1 ]]
         then
             get_current_branch
-            root=$current_branch
-            branch=${VC_ARGS[0]}
+
+            merge_to=$current_branch
+            merge_from=${VC_ARGS[0]}
         else
             root_to_branch
+            
+            merge_to="${root}"
+            merge_from="${branch}"
 
-            try "git" "merge" "switch to the root: ${root} for merge" switch ${root}
+            try "git" "merge" "switch to the merge target: ${merge_to} from  merge source ${merge_from}" switch ${merge_to}
 
             if [[ $? -ne 0 ]]
             then
-                abort "merge" "cannot switch to branch \"${root}\"" "$?"
+                abort "merge" "cannot switch to merge source: ${merge_to}" "$?"
             fi
         fi
 
-        if ask_yn "merge $branch into \"$root\""
+        if ask_yn "merge $merge_from into ${merge_to}"
         then
-            verbosity "merge" "merging ${branch}"
+            verbosity "merge" "merging ${merge_from} into ${merge_to}"
 
-            try "git" "merge" "merge no ff from: ${branch}" merge --no-ff ${branch}
+            try "git" "merge" "merge no ff from: ${merge_from}" merge --no-ff ${merge_from}
         else
             abort "merge" "answer to merge is no" "NA"
         fi
@@ -1627,14 +1615,18 @@ case $1 in
 
         root_to_branch
 
-        verbosity "merge" "merge into ${root}"
+        if [[ "${branch}" == "${MAIN}" ]]
+        then
+            abort "publish" "cant merge below ${MAIN}, no branch is below ${MAIN}" "NA"
+        fi
+
+        verbosity "publish" "merge into ${root}"
 
         try "git" "publish" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
 
         if [[ $? -ne 0 ]]
         then
-            error "publish" "$?" "could not switch to \"${INEGRATION}\" for merge of ${branch}"
-            exit 1
+            abort "publish" "publish" "could not switch to \"${INEGRATION}\" for merge of ${branch}" $?
         fi
 
         try "git" "publish" "merge no ff from: ${branch}" merge --no-ff ${branch}
@@ -1777,7 +1769,7 @@ case $1 in
     "release")
         git flow release finish $VERSION || exit 1
         ;;
-    "help")
+    "help"|"--help")
         if [[ -n $2 ]]
         then
             filter="$2"
@@ -1795,6 +1787,9 @@ vc
 help [keyword]      = either print this list of commands or with arg
                       search for a set of commands
 man <command>       = get detailed description of a single command
+
+man options         = see the options for all commands. applicable option sets
+                      are listed in the man help for each command.
 
 [zsh tools commands]
 
@@ -1814,39 +1809,35 @@ tools-brew-rebuild  = rebuild packages in /opt/homebrew
 dependencies-init     = initialize /opt/dependencies for stable and minimal deps to compile against
 dependencies-upgrade  = upgrade /opt/dependencies 
 dependencies-install  = install into /opt/dependencies a list of packages
+dependencies--rebuild  = rebuild packages in /opt/homebrew
+
 
 [submodule]
 
 modinit             = initialize and pull all submodules
-modadd <1> <2> <3>  = add a submodule where 1=repo 2=branch 3=localDir (commit after)
-modupdate <module>  = pull the latest version of the module
-modsync             = pull and sync all modules to checked out commits
+modadd <d> <b> <u>  = add a submodule where d=path b=branch u=url (commit after)
+modpull             = pull the latest version of the module from remote
 modrm  <submodule>  = delete a submodule
-modall              = update all submodules
 
 [version control]
 
 status            = show status of repository
 verify            = show log with signatures for verification
 commit            = no arg, list numbered commits, +<num> print truncated SHA1
-show -l |  <+num> = show commit objects, no arg last, -l list, +num line number
+show...           num convert log line numbers to the commit SHA , see man for help.
 
-history  = show commit history
-pending  = commits not in root or branch
-ahead    = show log of commits in branch but not in parent
-behind <trunk> = show upstream or "trunk" changes not in branch
+history           = show commit history
+pending           = commits not in root or branch
+ahead             = show log of commits in branch but not in parent
+behind            = show upstream or "trunk" changes not in branch
 
-integrate      = integrate changes from trunk into feature branch
-publish        = merge branch work into the intergate trunk
+integrate         = integrate changes from trunk into feature branch
+publish           = merge branch work into the intergate trunk
 
-diff <branch>  = diff against parent branch (default) 
-patch          = generate a unified diff
+diff <none> | =<commit> | =<commit>..<commit>  = diff latest commit, specific commit, and commit range
+patch             = generate a unified diff
 
-rb       = rollback to index, work, merge
-
-[repository commands]
-
-get <branch> <upstream> = checkout a upstream branch
+rb                = rollback to index, work, merge
 
 [workflow]
 
@@ -1859,10 +1850,10 @@ pull     = merge from trunk to branch
 push     = push changes from branch to trunk
 
 begin <name>  = start feature branch
-end <name>    = close feature branch <name>
+end <name>    = finish a feature branch by merging into $INTEGRATION
 
 bug <name>    = start a bug branch
-close <close> = finish a bugfix merging into develop
+close <close> = finish a bugfix merging into $INTEGRATION
 
 goto          = switch to feature or bugfix branch by name
 
@@ -1887,8 +1878,12 @@ HELP
                 cat <<DESCRIPTION
 tools-zshrc
 
-Install the vc version of .zshrc into .zshrc contains many functions
-and alises and is the backbone of tools-custom and tools-prompt.
+Install the vc version of .zshrc into .zshrc - zshrc contains
+the kernel of the shell tools, and contains numerous functions
+and aliass that make development easier and less error prone.
+
+The source of the shell script may be found in ${VCSH_SHELL}zshrc.rc
+
 
 DESCRIPTION
                 ;;
@@ -1896,8 +1891,11 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-custom
 
-Install a zshenv script that spins up ssh-agent if needed, sets environment variables
-like path, cleans up the path, deduping and sorting.
+The zshrc.custom script sets up the environment according to how I
+setup my code. It constructs PATH, and numerous other critical
+environmental tools, and also fires off resources, like trying to
+determine if SSH is running and launches it if missing. the script may
+be found in ${VCSH_SHELL}.
 
 DESCRIPTION
                 ;;
@@ -1913,7 +1911,18 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-brew-init
 
-For MacOS install homebrew core into ~/tools creating dirs if needed.
+For MacOS install homebrew core into /opt/homebrew creating dirs if needed.
+
+The homebrew project provides a large number of Open Source packages
+on MacOS. tools-brew-init installs homebrew into "/opt/homebrew" for
+regular tools.
+
+This is not directly related to Version Control, however breaking it
+out into a seperate script would IMHO fragment a good and cohesive
+toolbox into tiny projects.
+
+Homebrew commands do fit into the general mission of vcsh by providing
+a portable environment for tools.
 
 DESCRIPTION
                 ;;
@@ -1921,7 +1930,7 @@ DESCRIPTION
                 cat <<DESCRIPTION
 tools-brew-ugprade
 
-Upgrade all of the homebrew packages.
+Upgrade all of the homebrew packages in /opt/homebrew
 
 DESCRIPTION
                 ;;
@@ -1931,13 +1940,18 @@ tools-brew-install <package>...
 
 install packages into homebrew using the detected architecture.
 
+invoking homebrew from /opt/homebrew requires a special invocation so
+run the install command with a user supplied list of packages.
+
 DESCRIPTION
                 ;;
             "tools-brew-rebuild")
                 cat <<DESCRIPTION
 tools-brew-rebuild <package>....
 
-rebuild/reinstall all the packages in the repository.
+rebuild/reinstall all the packages in the repository. This is for a
+situation that is not a upgrade, but just a recompile.  If the compile
+fails the homebrew install might break.
 
 DESCRIPTION
                 ;;
@@ -1954,49 +1968,52 @@ install to /opt/dependencies/
 
 DESCRIPTION
                 ;;
+            "dependencies-install")
+                cat <<DESCRIPTION
+dependencies-install <package>...
+
+dependencies is a homebrew installation in /opt/dependencies
+for basing user programs off for libraries and tools.
+
+The problem with using homebrew in a single repository is that when
+installing and upgrading the repository things break very often.
+
+This repository is for building things like python off of so an
+upgrade doesnt wreck a critical tool.
+DESCRIPTION
+                ;;
             "dependencies-upgrade")
                 cat <<DESCRIPTION
 dependencies-upgrade
 
-Uprade everything in the /opt/dependencies/
-DESCRIPTION
-                ;;
-            "dependencies-install")
-                cat <<DESCRIPTION
-
-dependencies-install <package>...
-
-      Install 
+Uprade everything in the /opt/dependencies.
 DESCRIPTION
                 ;;
             "modinit")
                 cat <<DESCRIPTION
-modinit <module>
+Initialize and pull all the modules in the repository.
 
-initialize a submodule <module> and pull it's code.
 DESCRIPTION
                 ;;
             "modadd")
                 cat <<DESCRIPTION
-modinit <module>
+modadd <path> <branch> <url> 
 
-initialize a submodule <module> and pull it's code.
+add a new a submodule at <path> at <branch> from <url>.  Note:
+submodules are extremely difficult to fix if something non-trivial is
+attempted with a submodule, or the submodule is removed.
+
+The best use case for submodules is for third party development whe
+the only thing being done is fast forward pulls.
+
 DESCRIPTION
                 ;;
 
-            "modsync")
+            "modpull")
                 cat <<DESCRIPTION
-modsync
+modpull
 
 git pull and pull all the submodules to update
-DESCRIPTION
-                ;;
-            "modupdate")
-                cat <<DESCRIPTION
-
-modupdate  <module>
-
-git pull a single module
 DESCRIPTION
                 ;;
             "modrm")
@@ -2004,13 +2021,6 @@ DESCRIPTION
 modrm <module>
 
 delete modmodule <module>
-DESCRIPTION
-                ;;
-            "modall")
-                cat <<DESCRIPTION
-modrm <module>
-
-init and update all modules
 DESCRIPTION
                 ;;
             "begin")
@@ -2043,14 +2053,13 @@ end
 
 options: vc options
 
-from within a feature branch end the feature by switching to
-the trunk and merging the work from the feature branch into
-the trunk.
+from within a feature branch (must be in a feature branch) end the
+feature by switching to the trunk and merging the work from the
+feature branch into the trunk.
 
 It does not delete the branch. vc does not typically do
 destructive commands in an automated way.
 
-Must be executed within a feature branch.
 DESCRIPTION
                 ;;
             "bug")
@@ -2079,6 +2088,8 @@ DESCRIPTION
             "close")
                 cat <<DESCRIPTION
 close
+
+options: vc options
 
 from within a bugfix branch close the bugfix by switching to the trunk
 and merging the work from the bugfix branch into the trunk.
@@ -2149,21 +2160,25 @@ DESCRIPTION
                 ;;
             "diff")
                 cat <<DESCRIPTION             
-diff [branch]
+diff
 
 options: vc options, git arguments, git options
 
 
-generate a diff of current branch against a trunk, or
-with a argument diff from HEAD to that branch.
+generate a diff with the same revision content
+as history. passing an argument of a range 
+of commits like:
 
+vc diff =f3123f..3133a
+
+will diff that range
 DESCRIPTION
                 ;;
             "verify")
                 cat <<DESCRIPTION             
 verify: vc options, git arguments, git options
 
-using default options show signatures for commits
+Using default options show signatures for commits and check them
 
 DESCRIPTION
                 ;;
@@ -2179,25 +2194,37 @@ doesn't show anything.
 
 DESCRIPTION
                 ;;
-
             "commit")
                 cat <<DESCRIPTION
-commit <> | <number>
+commit <none> | +<number> | +<number> +<number>
 
-show commits with numbering, and select commit by the number, which
-generates the SHA for that commit. 
+options: vc options, arguments
 
-It may seem like this can be accomplished via cut and paste, but on a
-server over ssh this sort of thing can be clunky.
+<none> no arg generates a list of the commits with vc options,
+applicable that is numbered. commit SHA values are generated for the
+commit number by one and two arg calls.
+
+giving a +<number> single option returns the SHA for that numbered
+commit. This allows the production of commit SHA for commands like
+show and diff.
+
+
+two +<number> +<number> args produces a range <sha>..<sha>.
+
+These can be incorperated into commands with backtick operator. For
+example: vc show vc commit +4
 
 DESCRIPTION
+                
                 ;;
-
             "up")
                 cat <<DESCRIPTION             
 up
 
-push up ${INTEGRATION} and ${MAIN} trunks, and also tags.
+options: vc options
+
+push up ${INTEGRATION} and ${MAIN} trunks, and also tags to default
+remote.
 
 DESCRIPTION
                 ;;
@@ -2206,17 +2233,22 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 down
 
-fetch the remote for the current branch, do a fetch, and show a log of
-the last ten commits upstream.
+options: vc options
+
+pull to fetch and merge fast forward only ${MAIN} and ${INTEGRATION}
+the remote of ${MAIN}.
 
 DESCRIPTION
                 ;;
 
             "history")
                 cat <<DESCRIPTION             
+options: git options, arguments
+
 history
 
-show log history of the current branch, using standard options.
+show log history of the current branch, using standard
+options. History goes back to the last parent.
 
 DESCRIPTION
                 ;;
@@ -2224,8 +2256,40 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 ahead
 
-Show how many commits ahead the current branch is in comparison to the
-trunk.
+options: git options, arguments
+
+Show commits in current branch and not in the trunk
+
+DESCRIPTION
+                ;;
+
+            "rebase")
+                cat <<DESCRIPTION             
+rebase <from>
+
+options: git options, arguments
+
+Rebase the <from> branch onto the current branch.
+
+DESCRIPTION
+                ;;
+            "merge")
+                cat <<DESCRIPTION             
+merge <none> | merge <target>
+
+options: git options
+
+Perform a merge from "from" into "target". If there
+is a single argument it is used as the target of
+the merge.
+
+if no argument is specified the parent of the current
+branch is used as the target and the current branch
+is the source.
+
+First merge from and to are established, it performs
+a switch to the target branch, and then completes
+the merge.
 
 DESCRIPTION
                 ;;
@@ -2234,7 +2298,9 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 behind
 
-Show how many commits are in the trunk but not in the branch
+options: git options, arguments
+
+Show the commits are in the trunk but not in the branch
 
 DESCRIPTION
                 ;;
@@ -2242,15 +2308,51 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 integrate
 
-rebase on "${INTEGRATION}" trunk to get commits not in the
-branch.
+rebase from "${INTEGRATION}" trunk into the current branch.
+
+This must be run from inside a feature branch.
+
+This command is designed to merge changes from the trunk into
+the current feature branch.
+
+DESCRIPTION
+                ;;
+            "publish")
+                cat <<DESCRIPTION             
+publish
+
+merge into ${INTEGRATION} development feature or bugfix.  You must be
+in a feature,bugfix branch, or ${INTEGRATION} trunk for this command
+to work properly.
 
 DESCRIPTION
                 ;;
 
-            "publish")
+            "get")
                 cat <<DESCRIPTION             
-publish
+get <remote> <branch>
+get <none> 
+
+get with two arguments, remote and branch, will checkout a local
+branch from the "$remote/$branch". It will exit after that.
+
+With no args it will require you to be in a feature branch,
+it will look up the remote in the feature branch, perform a fetch
+on the remote.
+
+With commits from upstream it will attempt a fast forward only
+remote, and if that fails ask to try a rebase.
+
+This command is intended for collaboration on a feature branch,
+to make getting changes added, via fast forward or rebase, easy,
+and with minimal merges that produce a commit object.
+
+DESCRIPTION
+                ;;
+
+            "put")
+                cat <<DESCRIPTION             
+put <remote> <branch>
 
 rebase on "${INTEGRATION}" trunk to get commits not in the
 branch.

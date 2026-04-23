@@ -1,37 +1,24 @@
 * TODO for vc
 
-* enhancements
-** get
-- no arg scenario: fast forward
-- 1 arg scenario: use as remote name, do a fetch and then log
-  :upstream, assuming that everything is all setup, offer to fast
-  forward
-- 2 arg scenario: set a upstream, do a upstream fetch with first arg,
-  then offer to create a branch tracking the upstream branch. do
-  bugfix/feature with examples of both, and select one.
+* key features
 
-* tests
+* testing
 ** test feature 
-- integrate 
-- publish
-- get
-- push
-
-** test pending
-
-* bugs
-** integrate doesnt offer and do rebase 
+- integrate
+- merge
+- rebase
 
 * doc work
-** show
 ** patch
-** pending
 ** list
-
-** merge
-** pull
-** push
-
 ** cat
+** get prototype of documentation and README.md working on Mac
+to verify that the toolchain works.
 
+* org mode documentation
+- sketch the main points in a document structure
+- start filling in the meat
+
+* README.md documentation
+- convert to markdown from org 
 
