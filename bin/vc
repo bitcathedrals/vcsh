@@ -1593,14 +1593,6 @@ case $1 in
         fi
         ;;
     "integrate")
-        shift
-
-        vc_options $@
-        git_arguments
-        git_options
-
-        verbosity "integrate" "rebase from ${root}"
-
         $0 rebase "${root}"
         ;;
     "publish")
