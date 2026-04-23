@@ -1,0 +1,24 @@
+* TODO for vc
+
+* key features
+
+* testing
+** test feature 
+- integrate
+- merge
+- rebase
+
+* doc work
+** patch
+** list
+** cat
+** get prototype of documentation and README.md working on Mac
+to verify that the toolchain works.
+
+* org mode documentation
+- sketch the main points in a document structure
+- start filling in the meat
+
+* README.md documentation
+- convert to markdown from org 
+

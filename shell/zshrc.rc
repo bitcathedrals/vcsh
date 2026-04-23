@@ -99,6 +99,7 @@ alias commit='git commit'
 alias ff='git pull --ff-only'
 alias add='git add'
 alias switch='git switch'
+alias merge='git merge --no-ff'
 
 # pass files or branches
 # initiate a merge
