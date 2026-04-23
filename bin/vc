@@ -1450,11 +1450,10 @@ case $1 in
         vc_options $@
         git_arguments
 
-        # :merge calls root_to_branch so those values are available from here out
-        git_options :merge
+        git_options ":merge"
 
-        info "rebase:commits" "show commits to be merged" "merging ${branch} and ${root}"
-        try_no_blanks "git" "show commits that can be rebased" log ${pre_options[@]} ${post_options[@]}
+        info "rebase" "show commits to be merged" "merging ${root} into ${branch}"
+        try_no_blanks "@git" "rebase" "show commits that can be rebased" ${pre_options[@]} ${post_options[@]}
 
         if [[ $? -ne 0 ]]
         then
@@ -1596,15 +1595,7 @@ case $1 in
     "integrate")
         shift
 
-        vc_options $@
-        git_arguments
-        git_options
-
-        require_feature_branch
-
-        verbosity "integrate" "rebase from ${root}"
-
-        $0 rebase "${root}"
+        $0 rebase $@
         ;;
     "publish")
         shift
