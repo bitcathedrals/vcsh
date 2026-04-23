@@ -1593,7 +1593,9 @@ case $1 in
         fi
         ;;
     "integrate")
-        $0 rebase "${root}"
+        shift
+
+        $0 rebase $@
         ;;
     "publish")
         shift
