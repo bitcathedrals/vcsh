@@ -1450,7 +1450,7 @@ case $1 in
         vc_options $@
         git_arguments
 
-        git_options :merge
+        git_options ":merge"
 
         info "rebase" "show commits to be merged" "merging ${root} into ${branch}"
         try_no_blanks "@git" "rebase" "show commits that can be rebased" ${pre_options[@]} ${post_options[@]}
