@@ -1609,8 +1609,6 @@ case $1 in
     "publish")
         shift
 
-        require_feature_branch
-
         vc_options $@
 
         root_to_branch
@@ -1622,11 +1620,11 @@ case $1 in
 
         verbosity "publish" "merge into ${root}"
 
-        try "git" "publish" "switch to $INTEGRATION trunk" "switch" "$INTEGRATION"
+        try "git" "publish" "switch to $INTEGRATION trunk" "switch" "${root}"
 
         if [[ $? -ne 0 ]]
         then
-            abort "publish" "publish" "could not switch to \"${INEGRATION}\" for merge of ${branch}" $?
+            abort "publish" "publish" "could not switch to \"${root}\" for merge of ${branch}" $?
         fi
 
         try "git" "publish" "merge no ff from: ${branch}" merge --no-ff ${branch}
