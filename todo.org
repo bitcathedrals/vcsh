@@ -1,23 +1,31 @@
 * TODO for vc
 
-* key features
+* features
+
+- work on release mode. Goal is from trunk to
+  - generate a report into a file
+  - merge from trunk into main, can insert report
+  - merge from main back into develop
+
+* bugs
+- when doing integrate rebase I get for logs: .. instead of merge ...
+
+release:
 
 * testing
-** test feature 
-- integrate
-- merge
-- rebase
-
-* doc work
-** patch
 ** list
 ** cat
-** get prototype of documentation and README.md working on Mac
-to verify that the toolchain works.
 
-* org mode documentation
-- sketch the main points in a document structure
-- start filling in the meat
+* doc work
+** list
+** cat
+** diff
+
+* first draft of standalone documentation
+- get prototype of documentation and README.md working on Mac
+to verify that the toolchain works.
+- get intro done
+- get overview done
 
 * README.md documentation
 - convert to markdown from org 
