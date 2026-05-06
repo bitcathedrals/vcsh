@@ -1043,7 +1043,7 @@ case $1 in
             abort "modadd" "submodule command requires  <local dir> <branch> <repo>" "NA"
         fi
 
-        if ! try "git" "modadd" "add a module"  git submodule add -b $branch $url $path
+        if ! try "git" "modadd" "add a module" submodule add -b $branch $url $path
         then
             abort "modadd" "vcsh: add failed. cleanup required." "$?"
         fi
