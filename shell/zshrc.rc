@@ -111,7 +111,8 @@ alias emerge="git mergetool"
 alias goto='vc goto'
 
 # stash
-alias push='git stash push -m'
+alias push='git push'
+alias stash='git stash push -m'
 alias pop='git stash'
 alias list='git stash list'
 alias pop='git stash pop'
@@ -158,23 +159,20 @@ function syncer {
 
 # use strings
 
-if [[ `uname` == "Darwin" ]]
-then
-  alias ldd='otool -L'
-  alias llvm-dis-all='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
-  alias llvm-dis='objdump -d'
-  alias llvm-dis-sym'objdump --line-numbers --x86-asm-syntax=intel disassemble='
+sys=`uname`
 
-  alias llvm-list-sym='objdump -t'
-  alias llvm-list-dyn='objdump --dynamic-syms --show-all-symbols --demangle'
+case $sys in
+    "Linux"|"OpenBSD")
+        alias disassemble='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
+        alias dump='objdump -d'
 
-  alias gnu-dis-all='gobjdump --disassemble-all'
-  alias gnu-dis='--disassemble'
-  alias gnu-dis-sym='--disassemble='
-
-  alias gnu-list-sym='gobjdump -t'
-  alias gnu-list-dyn='gobdump -T'
-fi
+        alias static='objdump --demangle -t'
+        alias dynamic='objdump --dynamic-syms --show-all-symbols --demangle'
+        ;;
+    "Darwin")
+        alias ldd='otool -L'
+        ;;
+esac
 
 # ssh
 
