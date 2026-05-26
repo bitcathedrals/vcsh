@@ -223,12 +223,14 @@ function load_vc_config {
     do
         if [[ "$dir" == "$HOME" ]]
         then
-            abort "load_vc_config" "cowardly refusing to search below HOME" "NA"
+            warning "load_vc_config" "cowardly refusing to search below HOME" "config wont load"
+            break
         fi
 
         if [[ "$dir" == "/" ]]
         then
-            abort "load_vc_config" "practically refusing to search below /" "NA"
+            warning "load_vc_config" "practically refusing to search below /" "config wont load"
+            break
         fi
 
         if [[ -d "${dir}/.git" ]]
