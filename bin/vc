@@ -1272,6 +1272,9 @@ case $1 in
 
         try "git" "diff" "diff against parent or given branch" ${pre_options[@]} ${post_options[@]}
         ;;
+    "conflicted")
+        git diff --name-only --diff-filter=U
+        ;;
     "report")
         shift
 
@@ -1815,7 +1818,8 @@ modrm  <submodule>  = delete a submodule
 status            = show status of repository
 verify            = show log with signatures for verification
 commit            = no arg, list numbered commits, +<num> print truncated SHA1
-show...           num convert log line numbers to the commit SHA , see man for help.
+show              = num convert log line numbers to the commit SHA , see man for help.
+conflicted        = show conflicted files in a merge
 
 history           = show commit history
 pending           = commits not in root or branch
@@ -2308,6 +2312,14 @@ the current feature branch.
 
 DESCRIPTION
                 ;;
+            "conflicted")
+                cat <<DESCRIPTION
+conflicted
+
+show conflicted file names in a merge
+DESCRIPTION
+            ;;
+
             "publish")
                 cat <<DESCRIPTION             
 publish
