@@ -2260,11 +2260,12 @@ DESCRIPTION
 
             "rebase")
                 cat <<DESCRIPTION             
-rebase <from>
+rebase
 
 options: git options, arguments
 
-Rebase the <from> branch onto the current branch.
+Rebase the trunk onto the current branch. The trunk and branch values
+are automatically deduced.
 
 DESCRIPTION
                 ;;
@@ -2303,12 +2304,10 @@ DESCRIPTION
                 cat <<DESCRIPTION             
 integrate
 
-rebase from "${INTEGRATION}" trunk into the current branch.
+This command is designed to rebase changes from the trunk into the
+current branch.
 
-This must be run from inside a feature branch.
-
-This command is designed to merge changes from the trunk into
-the current feature branch.
+This is just a alias for rebase.
 
 DESCRIPTION
                 ;;
@@ -2349,16 +2348,6 @@ remote, and if that fails ask to try a rebase.
 This command is intended for collaboration on a feature branch,
 to make getting changes added, via fast forward or rebase, easy,
 and with minimal merges that produce a commit object.
-
-DESCRIPTION
-                ;;
-
-            "put")
-                cat <<DESCRIPTION             
-put <remote> <branch>
-
-rebase on "${INTEGRATION}" trunk to get commits not in the
-branch.
 
 DESCRIPTION
                 ;;
