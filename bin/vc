@@ -10,6 +10,7 @@ VCSH_SHELL="${VCSH_BASE}/shell/"
 VCSH_BREW=""
 
 VCSH_SYSTEM=$(uname)
+VCSH_DISTRO=""
 
 EMACS_BREW="/opt/emacs/"
 DEP_BREW="/opt/dependencies/"
@@ -26,6 +27,12 @@ case $VCSH_SYSTEM in
             then
                 VCSH_ARCH_COMMAND="arch -arm64"
             fi
+        fi
+        ;;
+    "Linux")
+        if [[ -f /etc/os-release ]]
+        then
+            source "/etc/os-release" && VCSH_DISTRO=$NAME
         fi
         ;;
 esac

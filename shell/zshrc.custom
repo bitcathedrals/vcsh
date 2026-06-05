@@ -94,8 +94,19 @@ function launch_ssh_agent {
 
   case "$system" in
     "Darwin")
-      return
-    ;;  
+        return
+        ;;  
+    "Linux")
+        if [[ -f /etc/os-release ]]
+        then
+            source /etc/os-release
+        
+            if [[ "$NAME" == "Ubuntu" ]]
+            then
+                return
+            fi
+        fi
+        ;;
   esac
 
   if [[ "$TERM" == "eterm-color" ]]
