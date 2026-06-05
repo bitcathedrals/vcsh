@@ -133,6 +133,8 @@ vc options: vc options apply to most commands and provide very
 
 ```
 
+git arguments control the git output in various ways.
+
 ```
 git arguments: arguments control the output of commands.
 
@@ -149,7 +151,8 @@ git arguments: arguments control the output of commands.
 -emacs        = use emacs as a difftool or mergetool
 ```
 
-git arguments control the git output in various ways.
+git options change the revision specifications selecting different
+sets of revisions for the command.
 
 ```
 git options: tell vc what to do when generating git commands
