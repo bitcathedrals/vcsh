@@ -33,6 +33,20 @@ In the nitty gritty the model recognizes several standard branches.
                 (develop) branch is kept in a clean, testable and bisectable state.
 - bugfix/(x)  - a bugfix branch is mergeable into both (main) and (develop)
 
+## Fundamental Ideas and Lexicon
+
+The most important noun in vc is "root" and "branch". The branch is the
+current git branch. The "root" is the trunk that the branch was derived
+from. A heuristic is used to derive the root.
+
+feature (branch) -> develop (trunk)
+develop (branch) -> main (trunk)
+main (branch) - > last tag with ^release (trunk)
+
+This heuristic allows for the git commands to be supplied with branch
+names automatically allowing the commands to be simplified, automatic,
+and applicable across contexts.
+
 ### feature branches
 
 Feature branches are where work originates. It has four primary
@@ -72,3 +86,19 @@ rebase from trunk into the current branch.
 This command is designed to merge changes from the trunk into
 the current feature branch.
 ```
+
+rebase is built to auto detect root and branch. It does not
+have a manual argument since it is tightlty integrated into
+the model.
+
+```
+rebase
+
+options: git options, arguments
+
+Rebase the trunk onto the current branch. The trunk and branch values
+are automatically deduced.
+```
+
+Rebase is flexible in that it works on the branches and trunks except
+when the branch == main which is nonsensical.
