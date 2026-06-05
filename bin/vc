@@ -1460,6 +1460,11 @@ case $1 in
         info "rebase" "show commits to be merged" "merging ${root} into ${branch}"
         try_no_blanks "@git" "rebase" "show commits that can be rebased" ${pre_options[@]} ${post_options[@]}
 
+        if [[ "$branch" == "$MAIN" ]]
+        then
+            abort "rebase" "finding branches" "NA"
+        fi
+         
         if [[ $? -ne 0 ]]
         then
             abort "rebase" "showing commits between ${root} and ${branch}" "$?"
@@ -1805,7 +1810,6 @@ dependencies-upgrade  = upgrade /opt/dependencies
 dependencies-install  = install into /opt/dependencies a list of packages
 dependencies--rebuild  = rebuild packages in /opt/homebrew
 
-
 [submodule]
 
 modinit             = initialize and pull all submodules
@@ -1826,23 +1830,21 @@ pending           = commits not in root or branch
 ahead             = show log of commits in branch but not in parent
 behind            = show upstream or "trunk" changes not in branch
 
-integrate         = integrate changes from trunk into feature branch
-publish           = merge branch work into the intergate trunk
-
 diff <none> | =<commit> | =<commit>..<commit>  = diff latest commit, specific commit, and commit range
 patch             = generate a unified diff
 
+
+merge             = merge branch into trunk
+rebase            = rebase from trunk onto branch
 rb                = rollback to index, work, merge
 
 [workflow]
 
-up       = push up trunk and main to remote
-down     = pull down trunk and main changes
+up            = push up trunk and main to remote
+down          = pull down trunk and main changes
 
-merge    = merge branch into trunk
-
-pull     = merge from trunk to branch
-push     = push changes from branch to trunk
+integrate     = integrate changes from trunk into feature branch
+publish       = merge branch work into the intergate trunk
 
 begin <name>  = start feature branch
 end <name>    = finish a feature branch by merging into $INTEGRATION
@@ -1859,9 +1861,7 @@ report     = generate a report of changes in branch, trunk, or main
 
 [release]
 
-beta <msg>       = create a beta tag with the messagecheck
-start <version>  = start the release process for version
-release          = execute git flow release finish with VERSION
+*under construction*
 
 HELP
         ;;
@@ -2124,7 +2124,7 @@ DESCRIPTION
                 ;;
             "tag")
                 cat <<DESCRIPTION
-tag <version> <message"
+tag <version> <message
 
 options: vc options
 
