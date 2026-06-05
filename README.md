@@ -55,7 +55,7 @@ functions:
 - development.
 - publishing.
 - integration. 
-- exchanging code with peers.
+- exchanging code with peers. (regular git push to push)
 
 ```
 get <remote> <branch>
@@ -77,11 +77,9 @@ and with minimal merges that produce a commit object.
 ```
 
 ```
-integrate/rebase
+integrate
 
 integrate is an alias for rebase.
-
-rebase from trunk into the current branch.
 
 This command is designed to merge changes from the trunk into
 the current feature branch.
@@ -102,3 +100,67 @@ are automatically deduced.
 
 Rebase is flexible in that it works on the branches and trunks except
 when the branch == main which is nonsensical.
+
+```
+dry run [rebase]: git log --date=relative --color main..develop | grep -v -E \'^$\'
+dry run [rebase]: git rebase main
+```
+
+This is what the dry run looks like for a rebase. First it shows the commits
+that would be rebased with -d switch for "dry run".
+
+At this point we should introduce options which make commands very flexible.
+
+## Options
+
+vc options apply to the script, not the git commands. They handle
+adjusting outcome and behavior to tune the debugging up.
+
+```
+vc options
+
+Not all options are available for all commands, since some options
+are nonsensible with the command.
+
+vc options: vc options apply to most commands and provide very
+            general commands like controlling output and
+            enabling verbosity and debugging.
+
+-v        : verbose
+-d        : dry run
+-t        : trace
+-x        : debug
+
+```
+
+```
+git arguments: arguments control the output of commands.
+
+-compact      = show oneline compact form
+-stat         = show diffstat output
+-graph        = show graph of commit history
+-details      = show branch details in log output
+-decorate     = decorate history with branch information
+-color        = color history output
+-no-color     = don't color history output
+-v            = verbose
+<n>           = limit number of entries returned
+-diff         = use a diff operation
+-emacs        = use emacs as a difftool or mergetool
+```
+
+git arguments control the git output in various ways.
+
+```
+git options: tell vc what to do when generating git commands
+
+:custom          = <branch>...?<trunk> or <trunk>...?<branch>
+:upstream        = execute against upstream branch
+:no-merges       = do not show merges
+:only-merges     = only show merges
+:merge           = use ... spec to show changes not in <trunk> and <branch>
+:none            = internal, for tools that don't involve git version specifications like cat-file
+```
+
+All these can be used in combination except when they conflict or are
+rejected by git which I would consider a bug.
