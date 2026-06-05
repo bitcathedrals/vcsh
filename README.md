@@ -164,3 +164,91 @@ git options: tell vc what to do when generating git commands
 
 All these can be used in combination except when they conflict or are
 rejected by git which I would consider a bug.
+
+## VCSH command overview
+
+```
+vc
+
+[documentation]
+
+help [keyword]      = either print this list of commands or with arg
+                      search for a set of commands
+man <command>       = get detailed description of a single command
+
+man options         = see the options for all commands. applicable option sets
+                      are listed in the man help for each command.
+
+[zsh tools commands]
+
+tools-zshrc         = install hombrew, pyenv, and pyenv switching commands into .zshrc
+tools-custom        = install zshrc.custom
+tools-prompt        = install prompt support with pyeenv, git, and project in the prompt
+
+[homebrew commands]
+
+brew-upgrade        = upgrade brew packages
+
+tools-brew-init     = initialize the /opt/homebrew homebrew repository
+tools-brew-upgrade  = upgrade the /opt/homebrew repository
+tools-brew-install  = install into /opt/homebrew a list of packages
+tools-brew-rebuild  = rebuild packages in /opt/homebrew
+
+dependencies-init     = initialize /opt/dependencies for stable and minimal deps to compile against
+dependencies-upgrade  = upgrade /opt/dependencies 
+dependencies-install  = install into /opt/dependencies a list of packages
+dependencies--rebuild  = rebuild packages in /opt/homebrew
+
+
+[submodule]
+
+modinit             = initialize and pull all submodules
+modadd <d> <b> <u>  = add a submodule where d=path b=branch u=url (commit after)
+modpull             = pull the latest version of the module from remote
+modrm  <submodule>  = delete a submodule
+
+[version control]
+
+status            = show status of repository
+verify            = show log with signatures for verification
+commit            = no arg, list numbered commits, +<num> print truncated SHA1
+show              = num convert log line numbers to the commit SHA , see man for help.
+conflicted        = show conflicted files in a merge
+
+history           = show commit history
+pending           = commits not in root or branch
+ahead             = show log of commits in branch but not in parent
+behind            = show upstream or "trunk" changes not in branch
+
+merge             = merge branch into trunk
+rebase            = rebase from trunk to branch
+
+diff <none> | =<commit> | =<commit>..<commit>  = diff latest commit, specific commit, and commit range
+patch             = generate a unified diff
+
+rb                = rollback to index, work, merge
+
+[workflow]
+
+up       = push up trunk and main to remote
+down     = pull down trunk and main changes
+
+
+integrate         = integrate changes from trunk into feature branch
+publish           = merge branch work into the intergate trunk
+
+begin <name>  = start feature branch
+end <name>    = finish a feature branch by merging into $INTEGRATION
+
+bug <name>    = start a bug branch
+close <close> = finish a bugfix merging into $INTEGRATION
+
+goto          = switch to feature or bugfix branch by name
+
+[list branches & make reports]
+
+list       = <merges|releases|features|bugfixes>
+report     = generate a report of changes in branch, trunk, or main
+
+```
+
