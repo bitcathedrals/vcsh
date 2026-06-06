@@ -161,6 +161,15 @@ function syncer {
 
 sys=`uname`
 
+function dasm  {
+    func=$1
+    obj_file=$2
+
+    echo "xcrun llvm-objdump -M intel -S -l -C -disassemble=$func $obj_file"
+
+    xcrun llvm-otool -v -V -p $1 $2
+}
+
 case $sys in
     "Linux"|"OpenBSD")
         alias disassemble='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
