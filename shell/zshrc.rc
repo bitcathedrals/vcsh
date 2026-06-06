@@ -155,10 +155,6 @@ function syncer {
   eval "rsync $dry_run --delete-after -arP --exclude .git $source $remote"
 }
 
-# reverse engineer
-
-# use strings
-
 sys=`uname`
 
 function dasm  {
@@ -172,7 +168,8 @@ function dasm  {
 
 case $sys in
     "Linux"|"OpenBSD")
-        alias disassemble='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
+        alias file='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
+        alias fun='objdump --disassemble-all --line-numbers --x86-asm-syntax=intel'
         alias dump='objdump -d'
 
         alias static='objdump --demangle -t'
