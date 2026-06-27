@@ -1495,8 +1495,12 @@ case $1 in
         git_arguments
         git_options ":upstream"
 
-        try_no_blanks "@git" "pending" "show work not in branch" ${pre_options[@]} ${post_options[@]}
-        exit $?
+        try_no_blanks "git" "pending" "show work not in branch" ${pre_options[@]} ${post_options[@]}
+
+        if [[ $? -ne 0 ]]
+        then
+            info "pending" "show pending" "if there are no commits to show a non-zero exit status will be returned"
+        fi
         ;;
     "list")
         shift
@@ -1531,6 +1535,11 @@ case $1 in
         git_options
 
         try_no_blanks "git" "history" "show commits on current branch" ${pre_options[@]} ${post_options[@]}
+
+        if [[ $? -ne 0 ]]
+        then
+            info "history" "show history" "if there are no commits to show a non-zero exit status will be returned"
+        fi
         ;;
     "ahead")
         shift
@@ -1539,7 +1548,12 @@ case $1 in
         git_arguments
         git_options
 
-        try_no_blanks "@git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
+        try_no_blanks "git" "ahead" 'show commits in branch, not trunk' ${pre_options[@]} ${post_options[@]}
+
+        if [[ $? -ne 0 ]]
+        then
+            info "ahead" "show commits ahead" "if there are no commits to show a non-zero exit status will be returned"
+        fi
         ;;
     "behind")
         shift
@@ -1555,7 +1569,12 @@ case $1 in
             git_options ":upstream"
         fi
 
-        try_no_blanks "@git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
+        try_no_blanks "git" "behind" "show commits upstream/trunk not in branch" ${pre_options[@]} ${post_options[@]}
+
+        if [[ $? -ne 0 ]]
+        then
+            info "behind" "show commits behind" "if there are no commits to show a non-zero exit status will be returned"
+        fi
         ;;
     "up")
         shift
